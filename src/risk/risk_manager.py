@@ -5,7 +5,7 @@ from typing import Dict, Optional, List
 from datetime import datetime
 import numpy as np
 
-from .position_sizing import PositionSizer
+from .position_sizing import AdvancedPositionSizer
 from .drawdown_manager import DrawdownManager
 from ..strategies.base import TradingSignal, SignalType
 from ..utils import get_logger, config

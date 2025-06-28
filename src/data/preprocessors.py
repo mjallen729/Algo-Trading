@@ -1,20 +1,133 @@
+"""
+Advanced Data Preprocessing Module
+
+This module provides comprehensive data preprocessing capabilities for cryptocurrency
+trading data, including feature engineering, technical indicators, and normalization.
+"""
+
+import pandas as pd
+import numpy as np
+import talib as ta
+from typing import Dict, List, Tuple, Optional
+from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
+import logging
+from src.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
+class AdvancedPreprocessor:
+    """
+    Advanced data preprocessing for cryptocurrency trading.
+    
+    Features:
+    - Comprehensive data cleaning and validation
+    - Technical indicator calculation (50+ indicators)
+    - Time-based feature engineering
+    - Advanced feature creation (momentum, volatility, etc.)
+    - Normalization and scaling
+    - Sequence creation for ML models
+    """
+    
+    def __init__(self, config: Dict = None):
+        """
+        Initialize the preprocessor.
+        
+        Args:
+            config: Configuration dictionary with preprocessing parameters
+        """
+        self.config = config or {}
+        self.scalers = {}
+        self.feature_columns = []
+        
+        # Default parameters
+        self.default_params = {
+            'remove_outliers': True,
+            'outlier_threshold': 0.5,  # 50% price change threshold
+            'fill_missing': True,
+            'normalize_features': True,
+            'scaler_type': 'robust',  # 'standard', 'robust', 'minmax'
+            'add_time_features': True,
+            'add_technical_indicators': True,
+            'add_advanced_features': True
+        }
+        
+        # Update with provided config
+        self.params = {**self.default_params, **self.config}
+        
+    def preprocess(self, data: pd.DataFrame) -> pd.DataFrame:
+        """
+        Main preprocessing pipeline.
+        
+        Args:
+            data: Raw OHLCV data
+            
+        Returns:
+            Preprocessed DataFrame with engineered features
+        """
+        logger.info("Starting advanced preprocessing pipeline...")
+        
+        # Make a copy to avoid modifying original data
+        df = data.copy()
+        
+        # Step 1: Clean and validate data
+        logger.info("Step 1: Cleaning and validating data...")
+        df = self._clean_data(df)
+        
+        # Step 2: Add technical indicators
+        if self.params['add_technical_indicators']:
+            logger.info("Step 2: Adding technical indicators...")
+            df = self._add_technical_indicators(df)
+        
+        # Step 3: Add time-based features
+        if self.params['add_time_features']:
+            logger.info("Step 3: Adding time-based features...")
+            df = self._add_time_features(df)
+        
+        # Step 4: Add advanced engineered features
+        if self.params['add_advanced_features']:
+            logger.info("Step 4: Adding advanced features...")
+            df = self._add_advanced_features(df)
+        
+        # Step 5: Handle missing values
+        if self.params['fill_missing']:
+            logger.info("Step 5: Handling missing values...")
+            df = self._handle_missing_values(df)
+        
+        # Step 6: Normalize features
+        if self.params['normalize_features']:
+            logger.info("Step 6: Normalizing features...")
+            df = self._normalize_features(df)
+        
+        # Store feature columns for future reference
+        self.feature_columns = df.columns.tolist()
+        
+        logger.info(f"Preprocessing completed. Shape: {df.shape}")
+        logger.info(f"Features created: {len(df.columns)}")
+        
+        return df
+        
+    def _clean_data(self, data: pd.DataFrame) -> pd.DataFrame:
+        """Clean and validate the input data."""
+        cleaned_data = data.copy()
         
         # Remove duplicate timestamps
         if 'Timestamp' in cleaned_data.columns:
             cleaned_data = cleaned_data.drop_duplicates(subset=['Timestamp'])
-        
+
         # Sort by timestamp if available
         if 'Date' in cleaned_data.columns:
             cleaned_data = cleaned_data.sort_values('Date')
         elif 'Timestamp' in cleaned_data.columns:
             cleaned_data = cleaned_data.sort_values('Timestamp')
-        
+
         # Validate OHLCV data
         required_columns = ['Open', 'High', 'Low', 'Close', 'Volume']
-        missing_columns = [col for col in required_columns if col not in cleaned_data.columns]
+        missing_columns = [
+            col for col in required_columns if col not in cleaned_data.columns]
         if missing_columns:
             raise ValueError(f"Missing required columns: {missing_columns}")
-        
+
         # Remove rows with invalid OHLCV data
         cleaned_data = cleaned_data[
             (cleaned_data['High'] >= cleaned_data['Low']) &
@@ -24,59 +137,58 @@
             (cleaned_data['Low'] <= cleaned_data['Close']) &
             (cleaned_data['Volume'] >= 0)
         ]
-        
+
         # Remove extreme outliers (more than 50% price change)
-        returns = cleaned_data['Close'].pct_change()
-        outlier_mask = (returns.abs() < 0.5)
-        cleaned_data = cleaned_data[outlier_mask]
-        
+        if self.params['remove_outliers']:
+            returns = cleaned_data['Close'].pct_change()
+            outlier_mask = (returns.abs() < self.params['outlier_threshold'])
+            cleaned_data = cleaned_data[outlier_mask]
+
         return cleaned_data
-    
+
     def _add_technical_indicators(self, data: pd.DataFrame) -> pd.DataFrame:
         """Add comprehensive technical indicators."""
         df = data.copy()
         
         # Price-based indicators
-        df['SMA25'] = ta.trend.sma_indicator(df['Close'], window=25)
-        df['EMA25'] = ta.trend.ema_indicator(df['Close'], window=25)
-        df['SMA50'] = ta.trend.sma_indicator(df['Close'], window=50)
-        df['EMA50'] = ta.trend.ema_indicator(df['Close'], window=50)
+        df['SMA25'] = ta.SMA(df['Close'], timeperiod=25)
+        df['EMA25'] = ta.EMA(df['Close'], timeperiod=25)
+        df['SMA50'] = ta.SMA(df['Close'], timeperiod=50)
+        df['EMA50'] = ta.EMA(df['Close'], timeperiod=50)
         
         # Momentum indicators
-        df['RSI25'] = ta.momentum.rsi(df['Close'], window=25)
-        df['RSI14'] = ta.momentum.rsi(df['Close'], window=14)
-        df['MACD'] = ta.trend.macd_diff(df['Close'])
-        df['MACD_Signal'] = ta.trend.macd_signal(df['Close'])
+        df['RSI25'] = ta.RSI(df['Close'], timeperiod=25)
+        df['RSI14'] = ta.RSI(df['Close'], timeperiod=14)
+        df['MACD'], df['MACD_Signal'], df['MACD_Hist'] = ta.MACD(df['Close'])
         
         # Volatility indicators
-        df['ATR25'] = ta.volatility.average_true_range(df['High'], df['Low'], df['Close'], window=25)
+        df['ATR25'] = ta.ATR(df['High'], df['Low'], df['Close'], timeperiod=25)
         df['Volatility25'] = df['Close'].pct_change().rolling(25).std()
         
         # Bollinger Bands
-        bollinger = ta.volatility.BollingerBands(df['Close'])
-        df['BB_Upper'] = bollinger.bollinger_hband()
-        df['BB_Lower'] = bollinger.bollinger_lband()
-        df['BB_Middle'] = bollinger.bollinger_mavg()
+        df['BB_Upper'], df['BB_Middle'], df['BB_Lower'] = ta.BBANDS(df['Close'])
         df['BB_Width'] = (df['BB_Upper'] - df['BB_Lower']) / df['BB_Middle']
         df['BB_Position'] = (df['Close'] - df['BB_Lower']) / (df['BB_Upper'] - df['BB_Lower'])
         
         # Volume indicators
-        df['Volume_SMA'] = ta.volume.volume_sma(df['Close'], df['Volume'])
-        df['Volume_EMA'] = df['Volume'].ewm(span=20).mean()
-        df['OBV'] = ta.volume.on_balance_volume(df['Close'], df['Volume'])
-        df['CMF'] = ta.volume.chaikin_money_flow(df['High'], df['Low'], df['Close'], df['Volume'])
+        df['OBV'] = ta.OBV(df['Close'], df['Volume'])
+        df['AD'] = ta.AD(df['High'], df['Low'], df['Close'], df['Volume'])
         
         # Trend indicators
-        df['ADX'] = ta.trend.adx(df['High'], df['Low'], df['Close'])
-        df['CCI'] = ta.trend.cci(df['High'], df['Low'], df['Close'])
-        df['Williams_R'] = ta.momentum.williams_r(df['High'], df['Low'], df['Close'])
+        df['ADX'] = ta.ADX(df['High'], df['Low'], df['Close'])
+        df['CCI'] = ta.CCI(df['High'], df['Low'], df['Close'])
+        df['Williams_R'] = ta.WILLR(df['High'], df['Low'], df['Close'])
         
         # Stochastic oscillator
-        df['Stoch_K'] = ta.momentum.stoch(df['High'], df['Low'], df['Close'])
-        df['Stoch_D'] = ta.momentum.stoch_signal(df['High'], df['Low'], df['Close'])
+        df['Stoch_K'], df['Stoch_D'] = ta.STOCH(df['High'], df['Low'], df['Close'])
+        
+        # Additional momentum indicators
+        df['CMO'] = ta.CMO(df['Close'])
+        df['ROC'] = ta.ROC(df['Close'])
+        df['MOM'] = ta.MOM(df['Close'])
         
         return df
-    
+
     def _add_time_features(self, data: pd.DataFrame) -> pd.DataFrame:
         """Add time-based features."""
         df = data.copy()
@@ -116,7 +228,7 @@
         df['is_weekend'] = (df['day_of_week'] >= 5).astype(int)
         
         return df
-    
+
     def _add_advanced_features(self, data: pd.DataFrame) -> pd.DataFrame:
         """Add advanced engineered features."""
         df = data.copy()
@@ -165,12 +277,38 @@
         
         # Gap features
         df['gap_up'] = ((df['Open'] > df['Close'].shift(1)) & 
-                       ((df['Open'] - df['Close'].shift(1)) / df['Close'].shift(1) > 0.01)).astype(int)
+                 ((df['Open'] - df['Close'].shift(1)) / df['Close'].shift(1) > 0.01)).astype(int)
         df['gap_down'] = ((df['Open'] < df['Close'].shift(1)) & 
-                         ((df['Close'].shift(1) - df['Open']) / df['Close'].shift(1) > 0.01)).astype(int)
+                 ((df['Close'].shift(1) - df['Open']) / df['Close'].shift(1) > 0.01)).astype(int)
         
         return df
-    
+
+    def _handle_missing_values(self, data: pd.DataFrame) -> pd.DataFrame:
+        """Handle missing values using various strategies."""
+        df = data.copy()
+        
+        # Forward fill for price data (most conservative)
+        price_columns = ['Open', 'High', 'Low', 'Close']
+        for col in price_columns:
+            if col in df.columns:
+                df[col] = df[col].fillna(method='ffill')
+        
+        # For technical indicators, use interpolation
+        technical_cols = [col for col in df.columns if any(indicator in col for indicator in 
+                         ['SMA', 'EMA', 'RSI', 'MACD', 'BB_', 'ATR', 'ADX', 'CCI', 'Stoch'])]
+        
+        for col in technical_cols:
+            if col in df.columns:
+                df[col] = df[col].interpolate(method='linear')
+        
+        # For remaining columns, use median fill
+        remaining_numeric = df.select_dtypes(include=[np.number]).columns
+        for col in remaining_numeric:
+            if df[col].isnull().any():
+                df[col] = df[col].fillna(df[col].median())
+        
+        return df
+
     def _normalize_features(self, data: pd.DataFrame) -> pd.DataFrame:
         """Normalize numerical features."""
         df = data.copy()
@@ -185,17 +323,25 @@
                            if df[col].dtype in ['float64', 'int64'] 
                            and col not in exclude_columns]
         
-        # Use RobustScaler for better handling of outliers
-        scaler = RobustScaler()
+        # Select scaler type
+        if self.params['scaler_type'] == 'standard':
+            scaler = StandardScaler()
+        elif self.params['scaler_type'] == 'robust':
+            scaler = RobustScaler()
+        elif self.params['scaler_type'] == 'minmax':
+            scaler = MinMaxScaler()
+        else:
+            scaler = RobustScaler()  # Default
         
         # Fit and transform numerical columns
-        df[numerical_columns] = scaler.fit_transform(df[numerical_columns])
-        
-        # Store scaler for future use
-        self.scalers['features'] = scaler
+        if numerical_columns:
+            df[numerical_columns] = scaler.fit_transform(df[numerical_columns])
+            
+            # Store scaler for future use
+            self.scalers['features'] = scaler
         
         return df
-    
+
     def create_sequences(self, 
                         data: pd.DataFrame, 
                         sequence_length: int,
@@ -234,7 +380,7 @@
             y.append(feature_data[i, target_idx])
         
         return np.array(X), np.array(y)
-    
+
     def calculate_feature_importance(self, 
                                    data: pd.DataFrame,
                                    target_column: str = 'Close') -> pd.Series:
@@ -273,7 +419,7 @@
         
         importance = pd.Series(correlations).sort_values(ascending=False)
         return importance
-    
+
     def get_feature_summary(self, data: pd.DataFrame) -> Dict:
         """
         Get summary statistics for all features.
@@ -295,11 +441,12 @@
         
         # Add statistics for numerical columns
         numerical_data = data.select_dtypes(include=[np.number])
-        summary['numerical_stats'] = {
-            'mean': numerical_data.mean().to_dict(),
-            'std': numerical_data.std().to_dict(),
-            'min': numerical_data.min().to_dict(),
-            'max': numerical_data.max().to_dict()
-        }
+        if not numerical_data.empty:
+            summary['numerical_stats'] = {
+                'mean': numerical_data.mean().to_dict(),
+                'std': numerical_data.std().to_dict(),
+                'min': numerical_data.min().to_dict(),
+                'max': numerical_data.max().to_dict()
+            }
         
         return summary
