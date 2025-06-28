@@ -1,45 +1,48 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env ruby
+require 'optparse'
 
-show_help() {
-  cat <<EOF
-Usage: $(basename "$0") <command> [options]
+def show_help
+  puts <<~EOF
+    Usage: #{File.basename($PROGRAM_NAME)} <command> [options]
 
-Commands:
-  write-changelog    Generate/update the changelog (replace the placeholder with your actual command)
+    Commands:
+      write-changelog    Generate/update the changelog (replace the placeholder with your actual command)
+      env                Start the python virtual environment
 
-Options:
-  -h, --help         Show this help message
-EOF
-}
+    Options:
+      -h, --help         Show this help message
+  EOF
+end
 
 # No args → help
-if [ $# -eq 0 ]; then
+if ARGV.empty?
   show_help
   exit 1
-fi
+end
 
 # Global options
-case "$1" in
-  -h|--help)
+OptionParser.new do |opts|
+  opts.on('-h', '--help') do
     show_help
     exit 0
-    ;;
-esac
+  end
+end.order!(ARGV) rescue begin
+  show_help
+  exit 1
+end
 
 # Subcommand dispatch
-cmd="$1"; shift
-case "$cmd" in
-
-  write-changelog)
-    git log --pretty=format:"%cd (%h) %s" --stat > changelog.txt
-    echo "Did write-changelog…"
-    ;;
-
-  *)
-    echo "Error: Unknown command '$cmd'"
-    show_help
-    exit 1
-    ;;
-esac
-
+cmd = ARGV.shift
+case cmd
+when 'write-changelog'
+  # run via shell so redirection works
+  system('git log --pretty=format:"%cd (%h) %s" --stat > changelog.txt')
+  puts 'Did write-changelog…'
+when 'env'
+  puts "To activate your virtualenv, run:"
+  puts "  source ./env/bin/activate"
+else
+  warn "Error: Unknown command '#{cmd}'"
+  show_help
+  exit 1
+end
