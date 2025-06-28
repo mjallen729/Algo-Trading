@@ -1,0 +1,94 @@
+# Main Configuration
+trading:
+  initial_capital: 10000
+  max_risk_per_trade: 0.02  # 2% max risk per trade
+  max_portfolio_drawdown: 0.15  # 15% max drawdown
+  min_confidence_threshold: 0.6  # Minimum ML model confidence
+  target_assets: ["BTC", "ETH", "SOL"]  # Primary trading assets
+  
+# Data Configuration
+data:
+  timeframes: ["5m", "15m", "1h"]  # Trading timeframes
+  lookback_periods: 100  # Historical periods for features
+  feature_columns: 
+    - "Open"
+    - "High" 
+    - "Low"
+    - "Close"
+    - "Volume"
+    - "SMA25"
+    - "EMA25"
+    - "RSI25"
+    - "ATR25"
+    - "Volatility25"
+  
+# ML Model Configuration
+models:
+  lstm:
+    sequence_length: 60
+    hidden_size: 128
+    num_layers: 2
+    dropout: 0.2
+    learning_rate: 0.001
+    
+  transformer:
+    d_model: 128
+    nhead: 8
+    num_layers: 4
+    dropout: 0.1
+    learning_rate: 0.001
+    
+  ensemble:
+    lstm_weight: 0.5
+    transformer_weight: 0.5
+    confidence_threshold: 0.65
+
+# Strategy Configuration  
+strategies:
+  momentum:
+    rsi_threshold: 70
+    volume_multiplier: 1.5
+    trend_strength_min: 0.6
+    
+  mean_reversion:
+    bollinger_std: 2.0
+    rsi_oversold: 30
+    rsi_overbought: 70
+    
+  arbitrage:
+    min_spread: 0.001  # 0.1% minimum spread
+    max_execution_time: 5  # seconds
+
+# Risk Management
+risk:
+  position_sizing:
+    method: "kelly_fractional"  # kelly_fractional, fixed_percent, atr_based
+    kelly_fraction: 0.25  # Use 25% of full Kelly
+    max_position_size: 0.1  # 10% max position size
+    
+  stop_loss:
+    method: "atr_trailing"  # fixed, atr_based, atr_trailing
+    atr_multiplier: 2.0
+    trailing_threshold: 0.02  # 2%
+    
+  take_profit:
+    risk_reward_ratio: 2.0  # 2:1 reward:risk
+    partial_profit_levels: [0.5, 1.0, 1.5]  # ATR multiples
+
+# Execution Configuration
+execution:
+  mode: "paper"  # paper, live
+  exchange: "binance"
+  order_type: "limit"  # market, limit, stop_limit
+  slippage_tolerance: 0.001  # 0.1%
+  max_order_size: 1000  # USD
+
+# Logging & Monitoring
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/trading.log"
+  
+monitoring:
+  metrics_port: 8000
+  dashboard_update_interval: 30  # seconds
