@@ -1,0 +1,22 @@
+{
+  "row": {
+    "columns": [
+      "Symbol",
+      "Year",
+      "Month (1-12)",
+      "Day (of month)",
+      "Open",
+      "High",
+      "Low",
+      "Volume",
+      "Market Cap",
+      "Volatility25",
+      "SMA25",
+      "EMA25",
+      "ATR25",
+      "RSI25",
+      "Close",
+      "NextClose"
+    ]
+  }
+}
