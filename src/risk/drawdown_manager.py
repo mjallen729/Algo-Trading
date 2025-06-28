@@ -5,7 +5,7 @@ from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 import numpy as np
 
-from ..utils import get_logger, config
+from utils import get_logger, config
 
 logger = get_logger(__name__)
 

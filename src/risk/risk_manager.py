@@ -7,8 +7,8 @@ import numpy as np
 
 from .position_sizing import AdvancedPositionSizer
 from .drawdown_manager import DrawdownManager
-from ..strategies.base import TradingSignal, SignalType
-from ..utils import get_logger, config
+from strategies.base import TradingSignal, SignalType
+from utils import get_logger, config
 
 logger = get_logger(__name__)
 

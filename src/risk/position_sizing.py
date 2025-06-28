@@ -11,7 +11,7 @@ from typing import Dict, Optional, Any
 from dataclasses import dataclass
 import logging
 
-from src.utils.logger import get_logger
+from utils import get_logger
 
 logger = get_logger(__name__)
 

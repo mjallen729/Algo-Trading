@@ -7,7 +7,7 @@ from typing import Dict, Optional, List
 from datetime import datetime
 import random
 
-from ..utils import get_logger, config
+from utils import get_logger, config
 
 logger = get_logger(__name__)
 

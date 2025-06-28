@@ -12,7 +12,7 @@ from typing import Tuple, Optional, Dict
 from pathlib import Path
 
 from .model_utils import model_paths
-from ..utils import get_logger, config
+from utils import get_logger, config
 
 logger = get_logger(__name__)
 

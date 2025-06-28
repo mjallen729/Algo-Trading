@@ -13,7 +13,7 @@ import json
 import threading
 import time
 
-from ..utils import get_logger, config
+from utils import get_logger, config
 
 logger = get_logger(__name__)
 

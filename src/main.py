@@ -1,20 +1,21 @@
 """
 Main entry point for the cryptocurrency trading superalgorithm.
 """
-from risk import RiskManager
-from execution import TradingEngine
-from strategies import MomentumStrategy, MeanReversionStrategy, ArbitrageStrategy
-from models import HybridPredictor, RegimeDetector, model_paths
-from data import DataLoader, DataPreprocessor
-from utils import get_logger, config
 import asyncio
 import signal
 import sys
 from pathlib import Path
 from typing import Dict, List
 
-# Add src to path
+# Add src to path for absolute imports
 sys.path.append(str(Path(__file__).parent))
+
+from risk import RiskManager
+from execution import TradingEngine
+from strategies import MomentumStrategy, MeanReversionStrategy, ArbitrageStrategy
+from models import HybridPredictor, RegimeDetector, model_paths
+from data import DataLoader, AdvancedPreprocessor
+from utils import get_logger, config
 
 
 logger = get_logger(__name__)
@@ -38,16 +39,16 @@ class SuperAlgorithm:
 
     # Initialize components
     self.data_loader = DataLoader()
-    self.data_preprocessor = DataPreprocessor()
+    self.data_preprocessor = AdvancedPreprocessor()
     self.hybrid_predictor = HybridPredictor()
     self.regime_detector = RegimeDetector()
     self.risk_manager = RiskManager()
 
-    # Initialize strategies
+    # Initialize strategies with config
     self.strategies = {
-        'momentum': MomentumStrategy(),
-        'mean_reversion': MeanReversionStrategy(),
-        'arbitrage': ArbitrageStrategy()
+        'momentum': MomentumStrategy(config),
+        'mean_reversion': MeanReversionStrategy(config),
+        'arbitrage': ArbitrageStrategy(config)
     }
 
     # Initialize trading engine
@@ -115,12 +116,7 @@ class SuperAlgorithm:
         data = self.data_loader.load_historical_data(asset)
         if len(data) > 100:  # Ensure sufficient data
           # Preprocess data
-          processed_data = self.data_preprocessor.preprocess_market_data(
-              data,
-              add_technical_indicators=True,
-              add_time_features=True,
-              normalize=True
-          )
+          processed_data = self.data_preprocessor.preprocess(data)
           training_data[asset] = processed_data
           logger.info(f"Loaded {len(data)} samples for {asset}")
 
@@ -173,12 +169,7 @@ class SuperAlgorithm:
         return
 
       # Preprocess data
-      processed_data = self.data_preprocessor.preprocess_market_data(
-          recent_data,
-          add_technical_indicators=True,
-          add_time_features=True,
-          normalize=True
-      )
+      processed_data = self.data_preprocessor.preprocess(recent_data)
 
       current_price = recent_data['Close'].iloc[-1]
 

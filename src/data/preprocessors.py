@@ -11,7 +11,7 @@ import talib as ta
 from typing import Dict, List, Tuple, Optional
 from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
 import logging
-from src.utils.logger import get_logger
+from utils import get_logger
 
 logger = get_logger(__name__)
 
@@ -110,6 +110,12 @@ class AdvancedPreprocessor:
   def _clean_data(self, data: pd.DataFrame) -> pd.DataFrame:
     """Clean and validate the input data."""
     cleaned_data = data.copy()
+
+    # Remove non-numeric columns that shouldn't be used for ML
+    non_numeric_cols = ['Symbol']
+    for col in non_numeric_cols:
+      if col in cleaned_data.columns:
+        cleaned_data = cleaned_data.drop(columns=[col])
 
     # Remove duplicate timestamps
     if 'Timestamp' in cleaned_data.columns:
@@ -321,14 +327,28 @@ class AdvancedPreprocessor:
     """Normalize numerical features."""
     df = data.copy()
 
-    # Identify numerical columns to normalize (exclude time features and binary indicators)
-    exclude_columns = ['Date', 'Timestamp', 'datetime', 'hour', 'day_of_week', 'day_of_month',
+    # Remove any remaining non-numeric columns including datetime indexes
+    # Reset index if it's a datetime index
+    if isinstance(df.index, pd.DatetimeIndex):
+      df = df.reset_index(drop=True)
+
+    # Remove any datetime columns and non-numeric columns
+    datetime_cols = df.select_dtypes(include=['datetime64']).columns
+    object_cols = df.select_dtypes(include=['object']).columns
+    
+    for col in list(datetime_cols) + list(object_cols):
+      if col in df.columns:
+        df = df.drop(columns=[col])
+
+    # Also remove time-based integer columns that shouldn't be normalized
+    exclude_columns = ['Year', 'Month', 'Day', 'hour', 'day_of_week', 'day_of_month',
                        'month', 'quarter', 'is_asian_session', 'is_european_session',
                        'is_american_session', 'is_weekend', 'price_above_sma25',
                        'sma25_above_sma50', 'gap_up', 'gap_down']
 
+    # Identify numerical columns to normalize
     numerical_columns = [col for col in df.columns
-                         if df[col].dtype in ['float64', 'int64']
+                         if df[col].dtype in ['float64', 'int64', 'float32', 'int32']
                          and col not in exclude_columns]
 
     # Select scaler type

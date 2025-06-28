@@ -9,9 +9,9 @@ from dataclasses import dataclass
 
 from .broker import PaperTradingBroker
 from .portfolio import Portfolio
-from ..utils import get_logger, config
-from ..risk import RiskManager, AdvancedPositionSizer
-from ..strategies.base import TradingSignal
+from utils import get_logger, config
+from risk import RiskManager, AdvancedPositionSizer
+from strategies.base import TradingSignal
 
 logger = get_logger(__name__)
 

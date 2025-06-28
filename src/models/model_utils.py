@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from ..utils import config, get_logger
+from utils import config, get_logger
 
 logger = get_logger(__name__)
 

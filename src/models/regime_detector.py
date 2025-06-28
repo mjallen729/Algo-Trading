@@ -18,8 +18,8 @@ import warnings
 import os
 import pickle
 
-from src.utils.logger import get_logger
-from src.models.model_utils import ModelPathManager
+from utils import get_logger
+from .model_utils import ModelPathManager
 
 warnings.filterwarnings("ignore")
 logger = get_logger(__name__)

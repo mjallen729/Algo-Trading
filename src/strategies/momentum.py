@@ -6,7 +6,7 @@ import numpy as np
 from typing import Dict, Optional
 
 from .base import BaseStrategy, TradingSignal, SignalType
-from ..utils import get_logger, config
+from utils import get_logger, config
 
 logger = get_logger(__name__)
 
@@ -22,24 +22,36 @@ class MomentumStrategy(BaseStrategy):
   - Moving average alignment for trend strength
   """
 
-  def __init__(self, config: Dict = None):
+  def __init__(self, config=None):
     """
     Initialize momentum strategy.
 
     Args:
-        config: Strategy configuration parameters
+        config: Configuration object or dict with strategy parameters
     """
+    # Extract strategy config if config object is passed
+    if hasattr(config, 'get'):
+      # Config object passed
+      strategy_config = {
+          'rsi_threshold': config.get('strategies.momentum.rsi_threshold', 70),
+          'volume_multiplier': config.get('strategies.momentum.volume_multiplier', 1.5),
+          'trend_strength_min': config.get('strategies.momentum.trend_strength_min', 0.6),
+      }
+    elif isinstance(config, dict):
+      # Dict passed directly
+      strategy_config = config
+    else:
+      # No config or None passed
+      strategy_config = {}
+
     default_config = {
-        'rsi_threshold': config.get('strategies.momentum.rsi_threshold', 70),
-        'volume_multiplier': config.get('strategies.momentum.volume_multiplier', 1.5),
-        'trend_strength_min': config.get('strategies.momentum.trend_strength_min', 0.6),
+        'rsi_threshold': strategy_config.get('rsi_threshold', 70),
+        'volume_multiplier': strategy_config.get('volume_multiplier', 1.5),
+        'trend_strength_min': strategy_config.get('trend_strength_min', 0.6),
         'min_confidence': 0.6,
         'lookback_period': 20,
         'breakout_threshold': 0.02  # 2% price movement for breakout
     }
-
-    if config:
-      default_config.update(config)
 
     super().__init__("Momentum", default_config)
 

@@ -6,7 +6,7 @@ import numpy as np
 from typing import Dict, List, Optional, Tuple
 
 from .base import BaseStrategy, TradingSignal, SignalType
-from ..utils import get_logger, config
+from utils import get_logger, config
 
 logger = get_logger(__name__)
 
@@ -21,24 +21,35 @@ class ArbitrageStrategy(BaseStrategy):
   - Short-term inefficiencies in price discovery
   """
 
-  def __init__(self, config: Dict = None):
+  def __init__(self, config=None):
     """
     Initialize arbitrage strategy.
 
     Args:
-        config: Strategy configuration parameters
+        config: Configuration object or dict with strategy parameters
     """
+    # Extract strategy config if config object is passed
+    if hasattr(config, 'get'):
+      # Config object passed
+      strategy_config = {
+          'min_spread': config.get('strategies.arbitrage.min_spread', 0.001),
+          'max_execution_time': config.get('strategies.arbitrage.max_execution_time', 5),
+      }
+    elif isinstance(config, dict):
+      # Dict passed directly
+      strategy_config = config
+    else:
+      # No config or None passed
+      strategy_config = {}
+
     default_config = {
-        'min_spread': config.get('strategies.arbitrage.min_spread', 0.001),
-        'max_execution_time': config.get('strategies.arbitrage.max_execution_time', 5),
+        'min_spread': strategy_config.get('min_spread', 0.001),
+        'max_execution_time': strategy_config.get('max_execution_time', 5),
         'correlation_threshold': 0.7,
         'spread_z_threshold': 2.0,
         'lookback_period': 100,
         'min_confidence': 0.6
     }
-
-    if config:
-      default_config.update(config)
 
     super().__init__("Arbitrage", default_config)
 

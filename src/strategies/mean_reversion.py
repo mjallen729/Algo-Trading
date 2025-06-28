@@ -6,7 +6,7 @@ import numpy as np
 from typing import Dict, Optional
 
 from .base import BaseStrategy, TradingSignal, SignalType
-from ..utils import get_logger, config
+from utils import get_logger, config
 
 logger = get_logger(__name__)
 
@@ -23,25 +23,37 @@ class MeanReversionStrategy(BaseStrategy):
   - Statistical measures of price extremes
   """
 
-  def __init__(self, config: Dict = None):
+  def __init__(self, config=None):
     """
     Initialize mean reversion strategy.
 
     Args:
-        config: Strategy configuration parameters
+        config: Configuration object or dict with strategy parameters
     """
+    # Extract strategy config if config object is passed
+    if hasattr(config, 'get'):
+      # Config object passed
+      strategy_config = {
+          'bollinger_std': config.get('strategies.mean_reversion.bollinger_std', 2.0),
+          'rsi_oversold': config.get('strategies.mean_reversion.rsi_oversold', 30),
+          'rsi_overbought': config.get('strategies.mean_reversion.rsi_overbought', 70),
+      }
+    elif isinstance(config, dict):
+      # Dict passed directly
+      strategy_config = config
+    else:
+      # No config or None passed
+      strategy_config = {}
+
     default_config = {
-        'bollinger_std': config.get('strategies.mean_reversion.bollinger_std', 2.0),
-        'rsi_oversold': config.get('strategies.mean_reversion.rsi_oversold', 30),
-        'rsi_overbought': config.get('strategies.mean_reversion.rsi_overbought', 70),
+        'bollinger_std': strategy_config.get('bollinger_std', 2.0),
+        'rsi_oversold': strategy_config.get('rsi_oversold', 30),
+        'rsi_overbought': strategy_config.get('rsi_overbought', 70),
         'mean_reversion_period': 20,
         'z_score_threshold': 2.0,
         'min_confidence': 0.5,
         'max_hold_periods': 10
     }
-
-    if config:
-      default_config.update(config)
 
     super().__init__("MeanReversion", default_config)
 
