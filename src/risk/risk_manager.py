@@ -27,7 +27,7 @@ class RiskManager:
 
   def __init__(self):
     """Initialize risk manager."""
-    self.position_sizer = PositionSizer()
+    self.position_sizer = AdvancedPositionSizer()
     self.drawdown_manager = DrawdownManager()
 
     # Risk parameters from config
@@ -45,6 +45,66 @@ class RiskManager:
     self.last_risk_check = datetime.now()
 
     logger.info("RiskManager initialized")
+
+  def validate_signal(self, signal: TradingSignal) -> Dict:
+    """
+    Validate a trading signal for risk compliance.
+    
+    Args:
+        signal: Trading signal to validate
+    
+    Returns:
+        Dictionary with 'approved' boolean and 'reason' string
+    """
+    try:
+      # Emergency stop check
+      if self.emergency_stop:
+        return {
+            'approved': False,
+            'reason': 'Emergency stop active - all trading halted'
+        }
+      
+      # Signal confidence check
+      min_confidence = config.get('trading.min_confidence_threshold', 0.6)
+      if signal.confidence < min_confidence:
+        return {
+            'approved': False,
+            'reason': f'Signal confidence {signal.confidence:.3f} below minimum {min_confidence:.3f}'
+        }
+      
+      # Basic signal validation
+      if not hasattr(signal, 'price') or signal.price <= 0:
+        return {
+            'approved': False,
+            'reason': 'Invalid signal price'
+        }
+      
+      # Check if signal has required attributes for trading engine compatibility
+      if not hasattr(signal, 'asset'):
+        return {
+            'approved': False,
+            'reason': 'Signal missing asset information'
+        }
+      
+      if not hasattr(signal, 'action'):
+        return {
+            'approved': False,
+            'reason': 'Signal missing action information'
+        }
+      
+      logger.info(f"Signal validation passed for {getattr(signal, 'asset', 'unknown')} {getattr(signal, 'action', 'unknown')}")
+      
+      return {
+          'approved': True,
+          'reason': 'Signal validation passed'
+      }
+      
+    except Exception as e:
+      logger.error(f"Error in signal validation: {e}")
+      return {
+          'approved': False,
+          'reason': f'Validation error: {str(e)}'
+      }
 
   def evaluate_trade_risk(self,
                           signal: TradingSignal,
