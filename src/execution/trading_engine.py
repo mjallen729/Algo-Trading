@@ -1,5 +1,5 @@
 signal.price,
-                order_type='limit'
+                order_type = 'limit'
             )
             
             if order and order.get('status') == 'filled':
