@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+show_help() {
+  cat <<EOF
+Usage: $(basename "$0") <command> [options]
+
+Commands:
+  write-changelog    Generate/update the changelog (replace the placeholder with your actual command)
+
+Options:
+  -h, --help         Show this help message
+EOF
+}
+
+# No args → help
+if [ $# -eq 0 ]; then
+  show_help
+  exit 1
+fi
+
+# Global options
+case "$1" in
+  -h|--help)
+    show_help
+    exit 0
+    ;;
+esac
+
+# Subcommand dispatch
+cmd="$1"; shift
+case "$cmd" in
+
+  write-changelog)
+    git log --pretty=format:"%cd (%h) %s" --stat > changelog.txt
+    echo "Did write-changelog…"
+    ;;
+
+  *)
+    echo "Error: Unknown command '$cmd'"
+    show_help
+    exit 1
+    ;;
+esac
+

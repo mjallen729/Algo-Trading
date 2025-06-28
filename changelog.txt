@@ -1,3 +1,28 @@
+Fri Jun 27 23:17:21 2025 -0400 (1da9765) update changelog
+ changelog.md  |  0
+ changelog.txt | 27 +++++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+)
+
+Fri Jun 27 23:17:11 2025 -0400 (9be006e) added project utils
+ src/utils/__init__.py |   9 ++++
+ src/utils/config.py   |  83 +++++++++++++++++++++++++++++++++
+ src/utils/logger.py   |  70 ++++++++++++++++++++++++++++
+ src/utils/metrics.py  | 125 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 287 insertions(+)
+
+Fri Jun 27 23:16:51 2025 -0400 (ab2bb41) implement data loader utils
+ src/data/__init__.py |   8 ++
+ src/data/loaders.py  | 233 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 241 insertions(+)
+
+Fri Jun 27 23:16:20 2025 -0400 (d7aa1b7) Create requirements.txt
+ requirements.txt | 56 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 56 insertions(+)
+
+Fri Jun 27 23:16:17 2025 -0400 (e5d7a8b) added main config
+ configs/config.yaml | 94 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 94 insertions(+)
+
 Fri Jun 27 23:02:22 2025 -0400 (e8d5517) Update .gitignore
  .gitignore | 2 ++
  1 file changed, 2 insertions(+)
