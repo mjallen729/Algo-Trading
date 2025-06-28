@@ -257,7 +257,7 @@ class LSTMPredictor:
 
     # Load best model
     self.model.load_state_dict(torch.load(
-      model_paths.get_temp_path('best_lstm_model.pth')))
+      model_paths.get_temp_path('best_lstm_model.pth'), weights_only=True))
     self.is_trained = True
 
     logger.info("LSTM model training completed")
@@ -340,7 +340,7 @@ class LSTMPredictor:
     if filepath is None:
       filepath = model_paths.get_lstm_path()
 
-    checkpoint = torch.load(filepath, map_location=self.device)
+    checkpoint = torch.load(filepath, map_location=self.device, weights_only=False)
 
     # Restore configuration
     config_dict = checkpoint['config']

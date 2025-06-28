@@ -3,7 +3,7 @@ trading:
   initial_capital: 10000
   max_risk_per_trade: 0.02  # 2% max risk per trade
   max_portfolio_drawdown: 0.15  # 15% max drawdown
-  min_confidence_threshold: 0.6  # Minimum ML model confidence
+  min_confidence_threshold: 0.3  # Minimum ML model confidence (lowered for testing)
   target_assets: ["BTC", "ETH", "SOL"]  # Primary trading assets
   
 # Data Configuration
@@ -45,14 +45,14 @@ models:
   ensemble:
     lstm_weight: 0.5
     transformer_weight: 0.5
-    confidence_threshold: 0.65
+    confidence_threshold: 0.4  # Lowered for testing
 
 # Strategy Configuration  
 strategies:
   momentum:
-    rsi_threshold: 70
-    volume_multiplier: 1.5
-    trend_strength_min: 0.6
+    rsi_threshold: 75  # Slightly higher for more selective signals
+    volume_multiplier: 1.2  # Lowered threshold
+    trend_strength_min: 0.4  # Lowered for more signals
     
   mean_reversion:
     bollinger_std: 2.0

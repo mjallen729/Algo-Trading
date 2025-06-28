@@ -188,13 +188,14 @@ class SuperAlgorithm:
       # Strategy selection based on regime
       active_strategy = self._select_strategy(current_regime)
 
-      # Generate trading signal
+      # Generate trading signal using raw data for technical analysis
+      # but include ML prediction and confidence
       signal = active_strategy.generate_signal(
-          data=processed_data,
+          data=recent_data,  # Use raw OHLCV data for technical indicators
           current_price=current_price,
           regime=current_regime,
-          prediction=prediction,
-          confidence=confidence
+          ml_prediction=prediction,  # Pass ML prediction
+          ml_confidence=confidence    # Pass ML confidence
       )
 
       logger.info(f"{asset} - Signal: {signal}")

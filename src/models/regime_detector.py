@@ -341,6 +341,18 @@ class RegimeDetector:
 
     return results
 
+  def detect_regime(self, data: pd.DataFrame) -> Dict:
+    """
+    Alias for predict method to maintain compatibility with main script.
+
+    Args:
+        data: Recent market data for regime prediction
+
+    Returns:
+        Dictionary with regime predictions from all models
+    """
+    return self.predict(data)
+
   def _ensemble_regime_prediction(self, predictions: Dict) -> int:
     """
     Combine predictions from multiple models using weighted voting.

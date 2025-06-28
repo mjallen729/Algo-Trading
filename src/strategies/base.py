@@ -251,3 +251,39 @@ class BaseStrategy(ABC):
 
   def __repr__(self):
     return f"{self.__class__.__name__}(name='{self.name}', active={self.is_active})"
+
+  def _adjust_confidence_for_regime(self, confidence: float, signal_type: SignalType, regime: str) -> float:
+    """
+    Adjust signal confidence based on market regime.
+    
+    Args:
+        confidence: Base signal confidence
+        signal_type: Type of trading signal
+        regime: Current market regime
+        
+    Returns:
+        Adjusted confidence score
+    """
+    if not regime or confidence <= 0:
+      return confidence
+      
+    # Boost confidence when signal aligns with regime
+    if "Trending Up" in regime and signal_type == SignalType.BUY:
+      return min(0.95, confidence * 1.1)
+    elif "Trending Down" in regime and signal_type == SignalType.SELL:
+      return min(0.95, confidence * 1.1)
+    elif ("Ranging" in regime or "Sideways" in regime):
+      # Mean reversion strategies work better in ranging markets
+      if hasattr(self, 'name') and 'Reversion' in self.name:
+        return min(0.95, confidence * 1.05)
+      # Reduce momentum strategy confidence in ranging markets
+      elif hasattr(self, 'name') and 'Momentum' in self.name:
+        return confidence * 0.9
+        
+    # Reduce confidence when signal contradicts regime
+    if "Trending Up" in regime and signal_type == SignalType.SELL:
+      return confidence * 0.8
+    elif "Trending Down" in regime and signal_type == SignalType.BUY:
+      return confidence * 0.8
+        
+    return confidence

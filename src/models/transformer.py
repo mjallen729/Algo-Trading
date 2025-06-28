@@ -232,7 +232,7 @@ class TransformerPredictor:
           break
 
     self.model.load_state_dict(torch.load(
-      model_paths.get_temp_path('best_transformer_model.pth')))
+      model_paths.get_temp_path('best_transformer_model.pth'), weights_only=True))
     self.is_trained = True
     logger.info("Transformer model training completed")
     return history
@@ -297,7 +297,7 @@ class TransformerPredictor:
     if filepath is None:
       filepath = model_paths.get_transformer_path()
 
-    checkpoint = torch.load(filepath, map_location=self.device)
+    checkpoint = torch.load(filepath, map_location=self.device, weights_only=False)
 
     config_dict = checkpoint['config']
     self.sequence_length = config_dict['sequence_length']

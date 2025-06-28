@@ -69,14 +69,18 @@ class MeanReversionStrategy(BaseStrategy):
                       data: pd.DataFrame,
                       current_price: float,
                       regime: str = None,
+                      ml_prediction: float = None,
+                      ml_confidence: float = None,
                       **kwargs) -> TradingSignal:
     """
     Generate mean reversion trading signal.
 
     Args:
-        data: Historical market data
+        data: Historical market data (raw OHLCV)
         current_price: Current asset price
         regime: Current market regime
+        ml_prediction: ML model price prediction
+        ml_confidence: ML model confidence score
 
     Returns:
         TradingSignal object
@@ -86,18 +90,97 @@ class MeanReversionStrategy(BaseStrategy):
 
     # Calculate indicators
     indicators = self.calculate_indicators(data)
+    
+    # Check if indicators were calculated successfully
+    if indicators.empty or 'RSI' not in indicators.columns:
+      logger.warning("Failed to calculate technical indicators")
+      return TradingSignal(SignalType.HOLD, 0.0, current_price)
 
     # Calculate mean reversion specific indicators
     indicators = self._add_mean_reversion_indicators(indicators)
 
     latest = indicators.iloc[-1]
+    
+    # Check for NaN values in critical indicators
+    if pd.isna(latest['RSI']) or pd.isna(latest['BB_Upper']) or pd.isna(latest['BB_Lower']):
+      logger.warning("NaN values in mean reversion indicators")
+      return TradingSignal(SignalType.HOLD, 0.0, current_price)
 
     # Mean reversion signals
     bb_signal = self._bollinger_band_signal(latest, current_price)
     rsi_signal = self._rsi_mean_reversion_signal(latest)
     z_score_signal = self._z_score_signal(indicators, current_price)
-    price_deviation_signal = self._price_deviation_signal(
-      indicators, current_price)
+    price_deviation_signal = self._price_deviation_signal(indicators, current_price)
+
+    # Initialize signal
+    signal_type = SignalType.HOLD
+    base_confidence = 0.0
+
+    # Use ML confidence as base if available
+    if ml_confidence is not None and ml_confidence > 0:
+      base_confidence = ml_confidence
+    else:
+      base_confidence = 0.5  # Default moderate confidence
+
+    # Determine signal based on mean reversion logic and ML prediction
+    signal_strength = (bb_signal + rsi_signal + z_score_signal + price_deviation_signal) / 4.0
+
+    # If ML prediction available, combine with technical signals
+    if ml_prediction is not None:
+      # For mean reversion, we often trade against the trend
+      # If ML predicts up but we're overbought, sell signal
+      # If ML predicts down but we're oversold, buy signal
+      
+      if signal_strength > 0.5:  # Strong buy signal from technical
+        if ml_prediction < 0.6:  # ML doesn't strongly contradict
+          signal_type = SignalType.BUY
+          base_confidence = (base_confidence * 0.6 + signal_strength * 0.4)
+          
+      elif signal_strength < -0.5:  # Strong sell signal from technical
+        if ml_prediction > 0.4:  # ML doesn't strongly contradict
+          signal_type = SignalType.SELL
+          base_confidence = (base_confidence * 0.6 + abs(signal_strength) * 0.4)
+
+    else:
+      # Traditional mean reversion logic without ML
+      if signal_strength > 0.7:
+        signal_type = SignalType.BUY
+        base_confidence = min(0.9, signal_strength)
+      elif signal_strength < -0.7:
+        signal_type = SignalType.SELL
+        base_confidence = min(0.9, abs(signal_strength))
+
+    # Regime adjustments
+    if regime:
+      base_confidence = self._adjust_confidence_for_regime(
+        base_confidence, signal_type, regime)
+
+    # Ensure minimum confidence threshold
+    if base_confidence < self.config.get('min_confidence', 0.1):
+      signal_type = SignalType.HOLD
+      base_confidence = 0.0
+
+    # Create signal with metadata
+    metadata = {
+        'bb_signal': bb_signal,
+        'rsi_signal': rsi_signal,
+        'z_score_signal': z_score_signal,
+        'price_deviation_signal': price_deviation_signal,
+        'signal_strength': signal_strength,
+        'rsi': latest['RSI'],
+        'bb_position': (current_price - latest['BB_Lower']) / (latest['BB_Upper'] - latest['BB_Lower']),
+        'regime': regime,
+        'ml_prediction': ml_prediction,
+        'ml_confidence': ml_confidence,
+        'strategy': 'mean_reversion'
+    }
+
+    signal = TradingSignal(signal_type, base_confidence, current_price, metadata=metadata)
+
+    if self.validate_signal(signal):
+      self.update_performance_metrics(signal)
+
+    return signal
 
     # Determine signal type and confidence
     signal_type = SignalType.HOLD
@@ -148,31 +231,55 @@ class MeanReversionStrategy(BaseStrategy):
 
   def _add_mean_reversion_indicators(self, indicators: pd.DataFrame) -> pd.DataFrame:
     """Add mean reversion specific indicators."""
-    # Z-score of price relative to moving average
-    indicators['Price_MA'] = indicators['Close'].rolling(
-      self.config['mean_reversion_period']).mean()
-    indicators['Price_Std'] = indicators['Close'].rolling(
-      self.config['mean_reversion_period']).std()
-    indicators['Z_Score'] = (indicators['Close'] -
-                             indicators['Price_MA']) / indicators['Price_Std']
+    try:
+      # Check for required base columns
+      required_cols = ['Close', 'BB_Upper', 'BB_Lower', 'EMA_12', 'EMA_26']
+      for col in required_cols:
+        if col not in indicators.columns:
+          logger.warning(f"Missing column for mean reversion indicators: {col}")
+          return indicators
+      
+      # Z-score of price relative to moving average
+      period = self.config.get('mean_reversion_period', 20)
+      indicators['Price_MA'] = indicators['Close'].rolling(period).mean()
+      indicators['Price_Std'] = indicators['Close'].rolling(period).std()
+      
+      # Avoid division by zero
+      std_mask = indicators['Price_Std'] != 0
+      indicators['Z_Score'] = 0.0
+      indicators.loc[std_mask, 'Z_Score'] = (
+        (indicators.loc[std_mask, 'Close'] - indicators.loc[std_mask, 'Price_MA']) / 
+        indicators.loc[std_mask, 'Price_Std']
+      )
 
-    # Bollinger Band position (0 = lower band, 1 = upper band)
-    bb_range = indicators['BB_Upper'] - indicators['BB_Lower']
-    indicators['BB_Position'] = (
-      indicators['Close'] - indicators['BB_Lower']) / bb_range
+      # Bollinger Band position (0 = lower band, 1 = upper band)
+      bb_range = indicators['BB_Upper'] - indicators['BB_Lower']
+      range_mask = bb_range != 0
+      indicators['BB_Position'] = 0.5  # Default to middle
+      indicators.loc[range_mask, 'BB_Position'] = (
+        (indicators.loc[range_mask, 'Close'] - indicators.loc[range_mask, 'BB_Lower']) / 
+        bb_range.loc[range_mask]
+      )
 
-    # Percentage price oscillator
-    indicators['PPO'] = (
-      (indicators['EMA_12'] - indicators['EMA_26']) / indicators['EMA_26']) * 100
+      # Percentage price oscillator
+      ema26_mask = indicators['EMA_26'] != 0
+      indicators['PPO'] = 0.0
+      indicators.loc[ema26_mask, 'PPO'] = (
+        (indicators.loc[ema26_mask, 'EMA_12'] - indicators.loc[ema26_mask, 'EMA_26']) / 
+        indicators.loc[ema26_mask, 'EMA_26']
+      ) * 100
 
-    # Williams %R
-    indicators['Williams_R'] = self._calculate_williams_r(indicators)
+      # Williams %R
+      indicators['Williams_R'] = self._calculate_williams_r(indicators)
 
-    # Stochastic oscillator
-    indicators['Stoch_K'], indicators['Stoch_D'] = self._calculate_stochastic(
-      indicators)
+      # Stochastic oscillator
+      indicators['Stoch_K'], indicators['Stoch_D'] = self._calculate_stochastic(indicators)
 
-    return indicators
+      return indicators
+      
+    except Exception as e:
+      logger.warning(f"Error adding mean reversion indicators: {e}")
+      return indicators
 
   def _calculate_williams_r(self, data: pd.DataFrame, period: int = 14) -> pd.Series:
     """Calculate Williams %R indicator."""
