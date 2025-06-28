@@ -12,6 +12,7 @@ from typing import Tuple, Optional, Dict, List
 import joblib
 from pathlib import Path
 
+from .model_utils import model_paths
 from ..utils import get_logger, config
 
 logger = get_logger(__name__)
@@ -244,7 +245,7 @@ class LSTMPredictor:
                 best_val_loss = val_loss
                 patience_counter = 0
                 # Save best model
-                torch.save(self.model.state_dict(), 'best_lstm_model.pth')
+                torch.save(self.model.state_dict(), model_paths.get_temp_path('best_lstm_model.pth'))
             else:
                 patience_counter += 1
                 if patience_counter >= early_stopping_patience:
@@ -252,7 +253,7 @@ class LSTMPredictor:
                     break
         
         # Load best model
-        self.model.load_state_dict(torch.load('best_lstm_model.pth'))
+        self.model.load_state_dict(torch.load(model_paths.get_temp_path('best_lstm_model.pth')))
         self.is_trained = True
         
         logger.info("LSTM model training completed")
@@ -307,10 +308,13 @@ class LSTMPredictor:
         
         return prediction_unscaled
     
-    def save_model(self, filepath: str):
+    def save_model(self, filepath: str = None):
         """Save the trained model."""
         if not self.is_trained:
             raise ValueError("No trained model to save")
+        
+        if filepath is None:
+            filepath = model_paths.get_lstm_path()
         
         save_dict = {
             'model_state_dict': self.model.state_dict(),
@@ -327,8 +331,11 @@ class LSTMPredictor:
         torch.save(save_dict, filepath)
         logger.info(f"Model saved to {filepath}")
     
-    def load_model(self, filepath: str):
+    def load_model(self, filepath: str = None):
         """Load a trained model."""
+        if filepath is None:
+            filepath = model_paths.get_lstm_path()
+        
         checkpoint = torch.load(filepath, map_location=self.device)
         
         # Restore configuration

@@ -9,6 +9,7 @@ from pathlib import Path
 
 from .lstm_predictor import LSTMPredictor
 from .transformer import TransformerPredictor
+from .model_utils import model_paths
 from ..utils import get_logger, config
 
 logger = get_logger(__name__)
@@ -225,18 +226,20 @@ class HybridPredictor:
         
         return performance
     
-    def save_ensemble(self, filepath: str):
+    def save_ensemble(self, filepath: str = None):
         """Save the entire ensemble model."""
         if not self.is_trained:
             raise ValueError("No trained ensemble to save")
         
-        # Save individual models
-        base_path = Path(filepath).parent
-        lstm_path = base_path / "lstm_model.pth"
-        transformer_path = base_path / "transformer_model.pth"
+        if filepath is None:
+            filepath = model_paths.get_ensemble_path()
         
-        self.lstm_model.save_model(str(lstm_path))
-        self.transformer_model.save_model(str(transformer_path))
+        # Save individual models to models directory
+        lstm_path = model_paths.get_lstm_path()
+        transformer_path = model_paths.get_transformer_path()
+        
+        self.lstm_model.save_model(lstm_path)
+        self.transformer_model.save_model(transformer_path)
         
         # Save ensemble configuration
         ensemble_config = {
@@ -244,7 +247,9 @@ class HybridPredictor:
             'transformer_weight': self.transformer_weight,
             'confidence_threshold': self.confidence_threshold,
             'performance_history': self.performance_history,
-            'is_trained': self.is_trained
+            'is_trained': self.is_trained,
+            'lstm_path': lstm_path,
+            'transformer_path': transformer_path
         }
         
         with open(filepath, 'wb') as f:
@@ -252,8 +257,11 @@ class HybridPredictor:
         
         logger.info(f"Ensemble model saved to {filepath}")
     
-    def load_ensemble(self, filepath: str):
+    def load_ensemble(self, filepath: str = None):
         """Load the entire ensemble model."""
+        if filepath is None:
+            filepath = model_paths.get_ensemble_path()
+        
         # Load ensemble configuration
         with open(filepath, 'rb') as f:
             ensemble_config = pickle.load(f)
@@ -264,12 +272,11 @@ class HybridPredictor:
         self.performance_history = ensemble_config['performance_history']
         self.is_trained = ensemble_config['is_trained']
         
-        # Load individual models
-        base_path = Path(filepath).parent
-        lstm_path = base_path / "lstm_model.pth"
-        transformer_path = base_path / "transformer_model.pth"
+        # Load individual models using stored paths or defaults
+        lstm_path = ensemble_config.get('lstm_path', model_paths.get_lstm_path())
+        transformer_path = ensemble_config.get('transformer_path', model_paths.get_transformer_path())
         
-        self.lstm_model.load_model(str(lstm_path))
-        self.transformer_model.load_model(str(transformer_path))
+        self.lstm_model.load_model(lstm_path)
+        self.transformer_model.load_model(transformer_path)
         
         logger.info(f"Ensemble model loaded from {filepath}")
