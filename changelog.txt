@@ -1,3 +1,32 @@
+Sat Jun 28 18:20:31 2025 -0400 (60969af) new tests & project meta
+ README.md                | 395 ++++++++++++++++++++++++++++-------------------
+ requirements.txt         |   5 +-
+ tests/test_components.py | 170 ++++++++++++++++++++
+ 3 files changed, 404 insertions(+), 166 deletions(-)
+
+Sat Jun 28 18:19:44 2025 -0400 (9318ec0) fixed syntax errors & bugs
+ src/data/__init__.py          |   4 +-
+ src/data/loaders.py           | 410 ++++++++++++++++----------------
+ src/data/preprocessors.py     | 251 ++++++++++++++++----
+ src/models/regime_detector.py | 538 ++++++++++++++++++++++++++++++++----------
+ src/risk/__init__.py          |   4 +-
+ src/risk/position_sizing.py   | 321 ++++++++++++++++++++++++-
+ src/risk/risk_manager.py      |   2 +-
+ 7 files changed, 1140 insertions(+), 390 deletions(-)
+
+Sat Jun 28 18:09:18 2025 -0400 (26df76c) moved tests to proper dir
+ test_superalgorithm.py => tests/test_superalgorithm.py | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)
+
+Sat Jun 28 17:51:08 2025 -0400 (c34c817) added new model path saving
+ src/main.py            | 54 +++++++++++++++++++++++++++++++++++++++++++++++---
+ src/models/__init__.py |  5 ++++-
+ 2 files changed, 55 insertions(+), 4 deletions(-)
+
+Sat Jun 28 00:54:15 2025 -0400 (76129ff) Update changelog.txt
+ changelog.txt | 5 +++++
+ 1 file changed, 5 insertions(+)
+
 Sat Jun 28 00:53:32 2025 -0400 (388159e) reqs
  changelog.txt    |  78 ++++++++------------------
  requirements.txt | 168 +++++++++++++++++++++++++++++++++++--------------------
