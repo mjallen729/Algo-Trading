@@ -1,3 +1,8 @@
+Sat Jun 28 00:53:32 2025 -0400 (388159e) reqs
+ changelog.txt    |  78 ++++++++------------------
+ requirements.txt | 168 +++++++++++++++++++++++++++++++++++--------------------
+ 2 files changed, 132 insertions(+), 114 deletions(-)
+
 Sat Jun 28 00:28:33 2025 -0400 (d83f92b) worked on regime detector (NOT DONE)
  src/models/regime_detector.py | 377 +++++++++++++++---------------------------
  1 file changed, 131 insertions(+), 246 deletions(-)
