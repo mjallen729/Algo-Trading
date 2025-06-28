@@ -1,0 +1,27 @@
+Fri Jun 27 23:02:22 2025 -0400 (e8d5517) Update .gitignore
+ .gitignore | 2 ++
+ 1 file changed, 2 insertions(+)
+
+Fri Jun 27 23:01:50 2025 -0400 (4321e49) initial
+ README.md                                    |    0
+ changelog.md                                 |    0
+ data/.DS_Store                               |  Bin 0 -> 6148 bytes
+ data/btc.csv                                 | 1802 +++++++++++++++++++++++++
+ data/doge.csv                                | 1802 +++++++++++++++++++++++++
+ data/eth.csv                                 | 1802 +++++++++++++++++++++++++
+ data/metadata/explore.ipynb                  |  866 ++++++++++++
+ data/metadata/readme.txt                     |    3 +
+ data/metadata/schema.json                    |   22 +
+ data/raw/bitcoin_2020-01-16_2025-01-14.csv   | 1827 ++++++++++++++++++++++++++
+ data/raw/dogecoin_2020-01-16_2025-01-14.csv  | 1827 ++++++++++++++++++++++++++
+ data/raw/ethereum_2020-01-16_2025-01-14.csv  | 1827 ++++++++++++++++++++++++++
+ data/raw/shiba-inu_2020-01-16_2025-01-14.csv | 1675 +++++++++++++++++++++++
+ data/raw/solana_2020-01-16_2025-01-14.csv    | 1743 ++++++++++++++++++++++++
+ data/shib.csv                                | 1650 +++++++++++++++++++++++
+ data/sol.csv                                 | 1718 ++++++++++++++++++++++++
+ src/.DS_Store                                |  Bin 0 -> 6148 bytes
+ 17 files changed, 18564 insertions(+)
+
+Fri Jun 27 22:59:46 2025 -0400 (c019694) Initial commit
+ .gitignore | 207 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 207 insertions(+)
