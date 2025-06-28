@@ -12,7 +12,7 @@ sys.path.append(str(Path(__file__).parent))
 
 from utils import get_logger, config
 from data import DataLoader, DataPreprocessor
-from models import HybridPredictor, RegimeDetector
+from models import HybridPredictor, RegimeDetector, model_paths
 from strategies import MomentumStrategy, MeanReversionStrategy, ArbitrageStrategy
 from execution import TradingEngine
 from risk import RiskManager
@@ -62,8 +62,51 @@ class SuperAlgorithm:
     
     async def initialize_models(self):
         """Initialize and train ML models."""
-        logger.info("Training ML models...")
+        logger.info("Initializing ML models...")
         
+        try:
+            # Check for existing trained models
+            if self._check_existing_models():
+                logger.info("Loading existing trained models...")
+                self._load_existing_models()
+                return
+            
+            # Train new models if none exist
+            logger.info("No existing models found, training new models...")
+            await self._train_new_models()
+            
+        except Exception as e:
+            logger.error(f"Error during model initialization: {e}")
+            raise
+    
+    def _check_existing_models(self) -> bool:
+        """Check if trained models already exist."""
+        try:
+            ensemble_path = model_paths.get_ensemble_path()
+            regime_path = model_paths.get_regime_detector_path()
+            
+            import os
+            return (os.path.exists(ensemble_path) and 
+                   os.path.exists(regime_path))
+        except Exception:
+            return False
+    
+    def _load_existing_models(self):
+        """Load existing trained models."""
+        try:
+            # Load models using centralized paths
+            self.hybrid_predictor.load_ensemble()
+            self.regime_detector.load_models()
+            
+            self.models_trained = True
+            logger.info("Existing models loaded successfully")
+            
+        except Exception as e:
+            logger.error(f"Error loading existing models: {e}")
+            raise
+    
+    async def _train_new_models(self):
+        """Train new models from scratch."""
         try:
             # Load historical data for training
             training_data = {}
@@ -96,8 +139,13 @@ class SuperAlgorithm:
                 logger.info("Training regime detection model...")
                 self.regime_detector.fit(primary_data)
                 
+                # Save trained models using centralized paths
+                logger.info("Saving trained models...")
+                self.hybrid_predictor.save_ensemble()
+                self.regime_detector.save_models()
+                
                 self.models_trained = True
-                logger.info("All models trained successfully")
+                logger.info("All models trained and saved successfully")
             else:
                 logger.error(f"Primary asset {primary_asset} not available for training")
                 
