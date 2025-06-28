@@ -54,3 +54,7 @@ empyrical>=0.5.5
 python-dateutil>=2.8.0
 pytz>=2023.3
 tqdm>=4.65.0
+
+# Additional ML Dependencies
+hmmlearn>=0.3.0
+openpyxl>=3.1.0

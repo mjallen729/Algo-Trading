@@ -24,6 +24,10 @@ data:
   
 # ML Model Configuration
 models:
+  # Model save directory (relative to project root)
+  save_directory: "models"
+  auto_create_directory: true
+  
   lstm:
     sequence_length: 60
     hidden_size: 128

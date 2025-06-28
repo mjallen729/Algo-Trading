@@ -37,7 +37,7 @@ case cmd
 when 'write-changelog'
   # run via shell so redirection works
   system('git log --pretty=format:"%cd (%h) %s" --stat > changelog.txt')
-  puts 'Did write-changelog…'
+  puts 'Did write-changelog.'
 when 'env'
   puts "To activate your virtualenv, run:"
   puts "  source ./env/bin/activate"
