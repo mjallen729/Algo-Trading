@@ -6,5 +6,6 @@ Your goal is to assist the user into developing a "superalgorithm" that trades c
 The absolute goals to optimize for are (prioritized):
 1) Trade as profitably as possible, regardless of strategy/risk.
 2) Make extremely accurate predictions that can be actionably traded upon.
+3) Use cutting edge machine learning models and techniques.
 
 Periodically update the readme with important info regarding application architecture and data flow.
