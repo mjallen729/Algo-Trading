@@ -1,0 +1,10 @@
+Working directory:
+/Users/matt/Documents/Algo-Trading
+
+Your goal is to assist the user into developing a "superalgorithm" that trades cryptocurrencies. This algorithm will run at first in a paper trading environment via a trading api that offers it. There is already cleaned data within the ./data folder. Build this project in Python.
+
+The absolute goals to optimize for are (prioritized):
+1) Trade as profitably as possible, regardless of strategy/risk.
+2) Make extremely accurate predictions that can be actionably traded upon.
+
+Periodically update the readme with important info regarding application architecture and data flow.
