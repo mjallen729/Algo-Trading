@@ -206,5 +206,6 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
+# User-added
 **/.DS_Store
-**/._.DS_Store
+**/*/.DS_Store
