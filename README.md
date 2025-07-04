@@ -90,6 +90,9 @@ In live trading mode, the bot operates in a continuous loop, performing the foll
     TFT_ATTENTION_HEADS="4"
     TFT_DROPOUT="0.2"
     TFT_LEARNING_RATE="0.001"
+
+    # --- Data Paths ---
+    DATA_DIR="data" # Directory for storing data
     ```
 
 ## Usage
