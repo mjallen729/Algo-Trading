@@ -1,0 +1,7 @@
+alpaca-py
+pandas
+numpy
+torch
+pytorch-forecasting
+ta-lib
+python-dotenv
