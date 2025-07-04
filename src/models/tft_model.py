@@ -1,8 +1,17 @@
 import torch
+import numpy as np
+import pandas as pd
 from pytorch_forecasting import TemporalFusionTransformer, TimeSeriesDataSet
 from pytorch_forecasting.data import GroupNormalizer
-from pytorch_forecasting.metrics import MAE, SMAPE, PoissonLoss, QuantileLoss
-import pandas as pd
+from pytorch_forecasting.metrics import QuantileLoss
+
+from src.config import (
+    TFT_HIDDEN_SIZE,
+    TFT_LSTM_LAYERS,
+    TFT_ATTENTION_HEADS,
+    TFT_DROPOUT,
+    TFT_LEARNING_RATE,
+)
 
 class TFTModel:
     def __init__(self, max_encoder_length: int, max_prediction_length: int, training_cutoff: int = None):
@@ -15,32 +24,41 @@ class TFTModel:
         self.tft_dataset = None
 
     def prepare_data(self, df: pd.DataFrame, time_idx_col: str = 'time_idx', target_col: str = 'close', group_id_col: str = 'symbol'):
-        # Ensure time_idx is sequential for PyTorch Forecasting
-        df[time_idx_col] = df.groupby(group_id_col).cumcount()
+        df[time_idx_col] = df.groupby(group_id_col, observed=True).cumcount()
 
-        # Define static and time-varying features
-        # For MVP, we'll use a simplified set. Expand as needed.
-        static_features = [] # No static features for now, assuming single asset
-        time_varying_known_reals = [] # No known future inputs for now
-        time_varying_unknown_reals = [target_col] + [col for col in df.columns if col not in [time_idx_col, target_col, group_id_col] and df[col].dtype in [np.float32, np.float64, np.int32, np.int64]]
+        # Add time-based features that are known in the future
+        df["month"] = df.index.month.astype(str).astype("category")
+        df["day"] = df.index.day.astype(str).astype("category")
+        df["weekday"] = df.index.dayofweek.astype(str).astype("category")
+        df["hour"] = df.index.hour.astype(str).astype("category")
+
+        static_features = []
+        time_varying_known_categoricals = ["month", "day", "weekday", "hour"]
+        time_varying_unknown_reals = [
+            target_col, 'open', 'high', 'low', 'volume',
+            'SMA_10', 'EMA_10', 'RSI', 'MACD', 'MACD_Signal', 'MACD_Hist',
+            'BB_Upper', 'BB_Middle', 'BB_Lower', 'ATR', 'OBV', 'Volatility'
+        ]
+        # Filter out columns that might not be present (e.g., if TA-lib fails)
+        time_varying_unknown_reals = [col for col in time_varying_unknown_reals if col in df.columns]
 
         self.tft_dataset = TimeSeriesDataSet(
             df,
             time_idx=time_idx_col,
             target=target_col,
             group_ids=[group_id_col],
-            min_encoder_length=self.max_encoder_length // 2,
+            min_encoder_length=self.max_encoder_length,
             max_encoder_length=self.max_encoder_length,
-            min_prediction_length=1,
+            min_prediction_length=self.max_prediction_length,
             max_prediction_length=self.max_prediction_length,
             static_categoricals=static_features,
-            time_varying_known_reals=time_varying_known_reals,
+            time_varying_known_categoricals=time_varying_known_categoricals,
             time_varying_unknown_reals=time_varying_unknown_reals,
-            target_normalizer=GroupNormalizer(groups=[group_id_col], transformation_type="softplus"),
+            target_normalizer=GroupNormalizer(groups=[group_id_col], transformation="softplus"),
             add_relative_time_idx=True,
             add_target_scales=True,
             add_encoder_length=True,
-            allow_missing_timesteps=True # Important for real-world data
+            allow_missing_timesteps=True
         )
 
         if self.training_cutoff is not None:
@@ -48,48 +66,44 @@ class TFTModel:
             self.validation_data = self.tft_dataset.filter(lambda x: x[time_idx_col] > self.training_cutoff, deepcopy=True)
         else:
             self.training_data = self.tft_dataset
-            self.validation_data = None # Or split manually if needed
+            self.validation_data = self.tft_dataset # Validate on the whole dataset if no cutoff
 
     def build_model(self):
+        if self.tft_dataset is None:
+            raise ValueError("Data not prepared. Call prepare_data() first.")
+            
         self.model = TemporalFusionTransformer.from_dataset(
             self.tft_dataset,
-            # Set parameters for the model. These are examples, tune as needed.
-            hidden_size=16,
-            lstm_layers=1,
-            dropout=0.1,
-            attention_head_size=4,
-            learning_rate=1e-3,
+            hidden_size=TFT_HIDDEN_SIZE,
+            lstm_layers=TFT_LSTM_LAYERS,
+            attention_head_size=TFT_ATTENTION_HEADS,
+            dropout=TFT_DROPOUT,
+            learning_rate=TFT_LEARNING_RATE,
             loss=QuantileLoss(),
             optimizer="Ranger",
-            # reduce learning rate if no improvement in validation loss over 10 epochs
-            reduce_on_plateau_patience=10,
+            reduce_on_plateau_patience=4,
         )
 
     def train_model(self, trainer):
-        if self.training_data is None:
+        if self.training_data is None or self.validation_data is None:
             raise ValueError("Data not prepared. Call prepare_data() first.")
         
-        train_dataloader = self.training_data.to_dataloader(train=True, batch_size=64)
-        val_dataloader = None
-        if self.validation_data:
-            val_dataloader = self.validation_data.to_dataloader(train=False, batch_size=64)
+        train_dataloader = self.training_data.to_dataloader(train=True, batch_size=128, num_workers=0)
+        val_dataloader = self.validation_data.to_dataloader(train=False, batch_size=128, num_workers=0)
 
         trainer.fit(self.model, train_dataloader, val_dataloader)
 
     def predict(self, data: pd.DataFrame) -> torch.Tensor:
-        if self.model is None:
-            raise ValueError("Model not built or trained. Call build_model() and train_model() first.")
-        
-        # Ensure the prediction data has the same structure as training data
-        # This might require careful handling of time_idx and other features
-        # For simplicity, assuming 'data' is already preprocessed and ready
-        
-        # Create a TimeSeriesDataSet for prediction
-        predict_dataset = TimeSeriesDataSet.from_dataset(self.tft_dataset, data, predict=True, stop_after_last_index=True)
-        predict_dataloader = predict_dataset.to_dataloader(train=False, batch_size=64)
+        if self.model is None or self.tft_dataset is None:
+            raise ValueError("Model not built or dataset not prepared.")
 
-        predictions = self.model.predict(predict_dataloader)
-        return predictions
+        # Create a dataloader for prediction
+        predict_dataset = TimeSeriesDataSet.from_dataset(self.tft_dataset, data, predict=True, stop_after_last_index=True)
+        predict_dataloader = predict_dataset.to_dataloader(train=False, batch_size=1)
+
+        # Raw predictions are quantile predictions
+        raw_predictions, _ = self.model.predict(predict_dataloader, return_x=True)
+        return raw_predictions
 
     def save_model(self, path: str):
         if self.model:
@@ -97,58 +111,11 @@ class TFTModel:
 
     def load_model(self, path: str, map_location=None):
         self.build_model() # Build model structure first
-        self.model.load_state_dict(torch.load(path, map_location=map_location))
-        self.model.eval() # Set to evaluation mode
-
-if __name__ == '__main__':
-    # Example Usage (requires dummy data with 'symbol' and 'time_idx')
-    from src.feature_engineering.features import FeatureEngineer
-    
-    # Create dummy data
-    n_samples = 1000
-    dates = pd.date_range(start='2023-01-01', periods=n_samples, freq='H')
-    dummy_data = {
-        'open': np.random.rand(n_samples) * 100,
-        'high': np.random.rand(n_samples) * 100 + 1,
-        'low': np.random.rand(n_samples) * 100 - 1,
-        'close': np.random.rand(n_samples) * 100,
-        'volume': np.random.rand(n_samples) * 1000,
-        'symbol': ['BTC'] * n_samples # Assuming a single symbol for simplicity
-    }
-    dummy_df = pd.DataFrame(dummy_data, index=dates)
-    dummy_df.index.name = 'Date'
-
-    # Engineer features
-    feature_engineer = FeatureEngineer()
-    engineered_df = feature_engineer.engineer_features(dummy_df.copy())
-    
-    # Add a time_idx column for PyTorch Forecasting
-    engineered_df['time_idx'] = engineered_df.groupby('symbol').cumcount()
-
-    # Define training cutoff (e.g., 80% for training, 20% for validation)
-    training_cutoff = engineered_df['time_idx'].max() - int(0.2 * len(engineered_df))
-
-    tft_model = TFTModel(
-        max_encoder_length=24, 
-        max_prediction_length=1, 
-        training_cutoff=training_cutoff
-    )
-    tft_model.prepare_data(engineered_df, target_col='close')
-    tft_model.build_model()
-
-    # Dummy trainer for example (in real scenario, use pytorch_lightning.Trainer)
-    class DummyTrainer:
-        def fit(self, model, train_dataloader, val_dataloader):
-            print("Training model (dummy fit)...")
-            # In a real scenario, this would run the training loop
-            pass
-
-    dummy_trainer = DummyTrainer()
-    tft_model.train_model(dummy_trainer)
-
-    # Example prediction
-    # For prediction, you'd typically pass the last `max_encoder_length` data points
-    # For this example, let's just take the last few rows of the engineered_df
-    prediction_data = engineered_df.iloc[-tft_model.max_encoder_length:]
-    predictions = tft_model.predict(prediction_data)
-    print("\nExample Prediction (first 5 values):", predictions.flatten()[:5].detach().numpy())
+        try:
+            self.model.load_state_dict(torch.load(path, map_location=map_location))
+            self.model.eval() # Set to evaluation mode
+            print(f"Successfully loaded model from {path}")
+        except FileNotFoundError:
+            print(f"Warning: Model file not found at {path}. A new model will be trained.")
+        except Exception as e:
+            print(f"Error loading model: {e}. A new model will be trained.")

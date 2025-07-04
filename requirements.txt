@@ -3,5 +3,6 @@ pandas
 numpy
 torch
 pytorch-forecasting
-ta-lib
-python-dotenv
+pytorch-lightning
+backtesting
+bokeh

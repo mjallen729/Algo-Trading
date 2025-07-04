@@ -1,84 +1,46 @@
 import pandas as pd
 import torch
 from src.models.tft_model import TFTModel
-from src.config import TFT_MAX_ENCODER_LENGTH, TFT_MAX_PREDICTION_LENGTH
 
 class Predictor:
-    def __init__(self, model_path: str, tft_dataset):
-        self.tft_model = TFTModel(TFT_MAX_ENCODER_LENGTH, TFT_MAX_PREDICTION_LENGTH)
-        self.tft_model.tft_dataset = tft_dataset # Pass the dataset structure
-        self.tft_model.load_model(model_path)
+    def __init__(self, model: TFTModel):
+        self.model = model
 
-    def predict_direction(self, data: pd.DataFrame) -> str:
-        # Ensure data has 'symbol' and 'time_idx' for TFTModel's predict method
-        # This assumes 'data' is already preprocessed and contains necessary features
+    def generate_signal(self, data: pd.DataFrame) -> tuple[str, float]:
+        """
+        Generates a trading signal based on the model's prediction.
+
+        Args:
+            data: The input DataFrame for prediction.
+
+        Returns:
+            A tuple containing the signal (str) and the predicted price (float).
+        """
+        # The model returns quantile predictions. Shape: (batch_size, prediction_length, num_quantiles)
+        raw_predictions = self.model.predict(data)
         
-        # Generate raw predictions
-        raw_predictions = self.tft_model.predict(data)
-        
-        # For simplicity, let's assume we are predicting the next 'close' price
-        # and we want to determine if it's 'UP', 'DOWN', or 'SIDEWAYS'
-        # This is a very basic interpretation and should be refined.
-        
-        # Get the median prediction from the quantiles
-        predicted_price = raw_predictions.mean().item() # Or use a specific quantile like .median()
-        
-        # Get the last known close price from the input data
+        # We are predicting for a horizon, let's take the median prediction at the end of the horizon
+        # Default quantiles: [0.02, 0.1, 0.25, 0.5, 0.75, 0.9, 0.98]
+        # Median (0.5 quantile) is the 4th value (index 3)
+        predicted_price = raw_predictions[0, -1, 3].item()
+
         last_close_price = data['close'].iloc[-1]
-        
-        if predicted_price > last_close_price * 1.001: # 0.1% threshold for UP
-            return "UP"
-        elif predicted_price < last_close_price * 0.999: # 0.1% threshold for DOWN
-            return "DOWN"
-        else:
-            return "SIDEWAYS"
+        predicted_change_pct = (predicted_price - last_close_price) / last_close_price
 
-if __name__ == '__main__':
-    # Example Usage (requires a trained model and dummy data)
-    # This is a simplified example. In a real scenario, you'd have a saved model.
-    
-    # 1. Create dummy data (similar to tft_model.py example)
-    import numpy as np
-    from src.feature_engineering.features import FeatureEngineer
-    from pytorch_forecasting import TimeSeriesDataSet
+        # Define thresholds for signals (can be moved to config)
+        STRONG_BUY_THRESHOLD = 0.02
+        BUY_THRESHOLD = 0.005
+        STRONG_SELL_THRESHOLD = -0.02
+        SELL_THRESHOLD = -0.005
 
-    n_samples = 100
-    dates = pd.date_range(start='2023-01-01', periods=n_samples, freq='H')
-    dummy_data = {
-        'open': np.random.rand(n_samples) * 100,
-        'high': np.random.rand(n_samples) * 100 + 1,
-        'low': np.random.rand(n_samples) * 100 - 1,
-        'close': np.random.rand(n_samples) * 100,
-        'volume': np.random.rand(n_samples) * 1000,
-        'symbol': ['BTC'] * n_samples
-    }
-    dummy_df = pd.DataFrame(dummy_data, index=dates)
-    dummy_df.index.name = 'Date'
-
-    feature_engineer = FeatureEngineer()
-    engineered_df = feature_engineer.engineer_features(dummy_df.copy())
-    engineered_df['time_idx'] = engineered_df.groupby('symbol').cumcount()
-
-    # 2. Create a dummy TFTModel and save it (for demonstration)
-    # In a real scenario, this model would be trained and saved separately.
-    tft_model_dummy = TFTModel(TFT_MAX_ENCODER_LENGTH, TFT_MAX_PREDICTION_LENGTH)
-    tft_model_dummy.prepare_data(engineered_df, target_col='close')
-    tft_model_dummy.build_model()
-    
-    # Create a dummy model file
-    dummy_model_path = "dummy_tft_model.pth"
-    torch.save(tft_model_dummy.model.state_dict(), dummy_model_path)
-
-    # 3. Initialize Predictor with the dummy model and dataset structure
-    predictor = Predictor(dummy_model_path, tft_model_dummy.tft_dataset)
-
-    # 4. Prepare data for prediction (last `max_encoder_length` rows)
-    prediction_input_data = engineered_df.iloc[-TFT_MAX_ENCODER_LENGTH:].copy()
-    
-    # 5. Get prediction
-    predicted_direction = predictor.predict_direction(prediction_input_data)
-    print(f"\nPredicted direction: {predicted_direction}")
-
-    # Clean up dummy model file
-    import os
-    os.remove(dummy_model_path)
+        signal = "HOLD"
+        if predicted_change_pct > STRONG_BUY_THRESHOLD:
+            signal = "STRONG_BUY"
+        elif predicted_change_pct > BUY_THRESHOLD:
+            signal = "BUY"
+        elif predicted_change_pct < STRONG_SELL_THRESHOLD:
+            signal = "STRONG_SELL"
+        elif predicted_change_pct < SELL_THRESHOLD:
+            signal = "SELL"
+            
+        return signal, predicted_price
