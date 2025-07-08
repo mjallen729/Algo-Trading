@@ -28,24 +28,37 @@
     *   **Training now successful** - model trains for 10 epochs and saves to `tft_model.pth`
     *   Split data creation logic: creates separate train/val datasets instead of using filter() on single dataset
 
-**CRITICAL TRAINING ENHANCEMENT (2025-07-08):**
-✅ **FIXED: Training now uses ALL 5 years of cleaned historical data (2020-2025)**
-- Modified `train_model()` to use `use_local=True` and load full dataset
-- Updated validation split: last 6 months for validation (vs previous 20% of 1 year)
-- Enhanced data loader to utilize pre-calculated features (SMA25, EMA25, ATR25, RSI25, Volatility25, Market Cap)
-- Feature engineering now leverages existing indicators instead of recalculating
-- Training data: ~4.5 years (36K+ hourly samples) vs previous 1 year (8K samples)
+**HYPERPARAMETER OPTIMIZATION (2025-07-08):**
+✅ **Optimized for Apple M1 Pro + 16GB + 5 years crypto data**
 
-**EXPECTED PERFORMANCE IMPROVEMENT:**
-- Much better generalization across different market regimes (bull/bear/sideways)
-- Exposure to major events: COVID crash (2020), DeFi summer, NFT boom, bear market (2022), recovery (2023-2024)
-- More robust validation with 6 months of out-of-sample data
+**KEY OPTIMIZATIONS MADE:**
+- TFT_HIDDEN_SIZE: 32 → 128 (4x increase for crypto complexity)
+- TFT_HIDDEN_CONTINUOUS_SIZE: 8 → 32 (4x increase for richer features)
+- TFT_ATTENTION_HEADS: 4 → 2 (reduced for crypto short-term patterns)
+- TFT_DROPOUT: 0.2 → 0.3 (increased for crypto volatility/noise)
+- TFT_LEARNING_RATE: 1e-3 → 3e-4 (reduced for stability with larger model)
+- TRAINING_EPOCHS: 10 → 50 (5x increase for proper convergence)
+- TFT_BATCH_SIZE: 128 → 64 (optimized for M1 Pro memory efficiency)
+- TFT_GRADIENT_CLIP_VAL: 0.1 → 0.5 (increased for gradient stability)
+- TFT_EARLY_STOP_PATIENCE: 5 → 8 (more patience for larger model)
+- TFT_ACCELERATOR: "cpu" → "mps" (Apple Silicon GPU acceleration)
+- TFT_NUM_WORKERS: 0 → 4 (utilize M1 Pro's 10 cores efficiently)
 
-**WORKING STATUS:**
-✅ Model training now works - can run `python -m src.main --mode train`
-✅ TFT model successfully trains and saves
-✅ Now trains on 5 years of data instead of 1 year
-✅ Utilizes pre-calculated features for efficiency
+**RATIONALE (based on research):**
+- Larger hidden_size for crypto complexity and 5-year dataset
+- Lower attention heads for short-term crypto patterns (vs long-term forecasting)
+- Higher dropout for noisy crypto market data
+- Conservative learning rate for stable training
+- MPS acceleration for 2-5x speedup on Apple Silicon
+- Batch size optimized for 16GB memory + MPS efficiency
+
+**EXPECTED IMPROVEMENTS:**
+- Better feature representation (4x model capacity)
+- More stable training (lower LR, higher clip val)
+- Faster training (MPS + optimized batch/workers)
+- Better generalization (higher dropout, more epochs)
+
+**READY TO TRAIN:** Run `./env/bin/python -m src.main --mode train`
 
 **NEXT STEPS ROADMAP (Prioritized by Profitability):**
 

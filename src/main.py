@@ -11,7 +11,8 @@ from src.config import (
   SYMBOL, INITIAL_CAPITAL, MODEL_PATH, TIME_FRAME,
   TFT_MAX_ENCODER_LENGTH, TFT_MAX_PREDICTION_LENGTH, TRAINING_EPOCHS,
   DATA_DIR, TFT_EARLY_STOP_MONITOR, TFT_EARLY_STOP_MIN_DELTA, 
-  TFT_EARLY_STOP_PATIENCE, TFT_EARLY_STOP_MODE, TFT_GRADIENT_CLIP_VAL
+  TFT_EARLY_STOP_PATIENCE, TFT_EARLY_STOP_MODE, TFT_GRADIENT_CLIP_VAL,
+  TFT_ACCELERATOR, TFT_DEVICES
 )
 from src.data_ingestion.data_loader import DataLoader
 from src.feature_engineering.features import FeatureEngineer
@@ -74,8 +75,8 @@ def train_model(data_loader: DataLoader, feature_engineer: FeatureEngineer, tft_
   )
   trainer = Trainer(
     max_epochs=TRAINING_EPOCHS,
-    accelerator="cpu",  # Use "gpu" if available
-    devices=1,
+    accelerator=TFT_ACCELERATOR,
+    devices=TFT_DEVICES,
     gradient_clip_val=TFT_GRADIENT_CLIP_VAL,
     callbacks=[early_stop_callback],
     enable_model_summary=False,

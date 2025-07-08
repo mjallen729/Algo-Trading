@@ -15,6 +15,7 @@ from src.config import (
   TFT_LEARNING_RATE,
   TFT_BATCH_SIZE,
   TFT_REDUCE_ON_PLATEAU_PATIENCE,
+  TFT_NUM_WORKERS,
 )
 
 
@@ -152,9 +153,9 @@ class TFTModel:
       raise ValueError("Data not prepared. Call prepare_data() first.")
     
     train_dataloader = self.training_data.to_dataloader(
-      train=True, batch_size=128, num_workers=0)
+      train=True, batch_size=TFT_BATCH_SIZE, num_workers=TFT_NUM_WORKERS)
     val_dataloader = self.validation_data.to_dataloader(
-      train=False, batch_size=128, num_workers=0)
+      train=False, batch_size=TFT_BATCH_SIZE, num_workers=TFT_NUM_WORKERS)
     
     trainer.fit(self.model, train_dataloader, val_dataloader)
 
