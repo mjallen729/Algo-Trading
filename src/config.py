@@ -28,10 +28,22 @@ TRAINING_EPOCHS = int(os.getenv("TRAINING_EPOCHS", "10")) # Number of training e
 
 # --- TFT Hyperparameters ---
 TFT_HIDDEN_SIZE = int(os.getenv("TFT_HIDDEN_SIZE", "32"))
+TFT_HIDDEN_CONTINUOUS_SIZE = int(os.getenv("TFT_HIDDEN_CONTINUOUS_SIZE", "8"))
 TFT_LSTM_LAYERS = int(os.getenv("TFT_LSTM_LAYERS", "2"))
 TFT_ATTENTION_HEADS = int(os.getenv("TFT_ATTENTION_HEADS", "4"))
 TFT_DROPOUT = float(os.getenv("TFT_DROPOUT", "0.2"))
 TFT_LEARNING_RATE = float(os.getenv("TFT_LEARNING_RATE", "1e-3"))
+
+# --- Training Hyperparameters ---
+TFT_BATCH_SIZE = int(os.getenv("TFT_BATCH_SIZE", "128"))
+TFT_REDUCE_ON_PLATEAU_PATIENCE = int(os.getenv("TFT_REDUCE_ON_PLATEAU_PATIENCE", "4"))
+TFT_GRADIENT_CLIP_VAL = float(os.getenv("TFT_GRADIENT_CLIP_VAL", "0.1"))
+
+# --- Early Stopping Hyperparameters ---
+TFT_EARLY_STOP_MONITOR = os.getenv("TFT_EARLY_STOP_MONITOR", "val_loss")
+TFT_EARLY_STOP_MIN_DELTA = float(os.getenv("TFT_EARLY_STOP_MIN_DELTA", "1e-4"))
+TFT_EARLY_STOP_PATIENCE = int(os.getenv("TFT_EARLY_STOP_PATIENCE", "5"))
+TFT_EARLY_STOP_MODE = os.getenv("TFT_EARLY_STOP_MODE", "min")
 
 # --- Data Paths ---
 DATA_DIR = os.getenv("DATA_DIR", "data")

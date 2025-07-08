@@ -14,20 +14,43 @@ class FeatureEngineer:
     pass
 
   def add_technical_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
+    # Check if pre-calculated features exist from cleaned data
+    has_precalc_features = any(col in df.columns for col in ['SMA25', 'EMA25', 'ATR25', 'RSI25', 'Volatility25'])
+    
+    if has_precalc_features:
+      print("Using pre-calculated features from cleaned data...")
+      # Use existing features and rename for consistency
+      if 'SMA25' in df.columns:
+        df['SMA_25'] = df['SMA25']
+      if 'EMA25' in df.columns:
+        df['EMA_25'] = df['EMA25']
+      if 'RSI25' in df.columns:
+        df['RSI'] = df['RSI25']
+      if 'ATR25' in df.columns:
+        df['ATR'] = df['ATR25']
+      if 'Volatility25' in df.columns:
+        df['volatility'] = df['Volatility25']
+    
     if not TALIB_AVAILABLE:
-      print("Skipping technical indicator generation: TA-Lib not available.")
+      if not has_precalc_features:
+        print("Warning: Neither TA-Lib nor pre-calculated features available.")
       return df
 
     if not all(col in df.columns for col in ['open', 'high', 'low', 'close', 'volume']):
       print("Warning: Missing OHLCV data for technical indicators.")
       return df
 
-    df['SMA_10'] = talib.SMA(df['close'], timeperiod=10)
-    df['EMA_10'] = talib.EMA(df['close'], timeperiod=10)
-    df['SMA_50'] = talib.SMA(df['close'], timeperiod=50)
-    df['EMA_50'] = talib.EMA(df['close'], timeperiod=50)
-
-    df['RSI'] = talib.RSI(df['close'], timeperiod=14)
+    # Only calculate missing indicators
+    if 'SMA_10' not in df.columns:
+      df['SMA_10'] = talib.SMA(df['close'], timeperiod=10)
+    if 'EMA_10' not in df.columns:
+      df['EMA_10'] = talib.EMA(df['close'], timeperiod=10)
+    if 'SMA_50' not in df.columns and 'SMA25' not in df.columns:
+      df['SMA_50'] = talib.SMA(df['close'], timeperiod=50)
+    if 'EMA_50' not in df.columns and 'EMA25' not in df.columns:
+      df['EMA_50'] = talib.EMA(df['close'], timeperiod=50)
+    if 'RSI' not in df.columns and 'RSI25' not in df.columns:
+      df['RSI'] = talib.RSI(df['close'], timeperiod=14)
 
     macd, macdsignal, macdhist = talib.MACD(
       df['close'], fastperiod=12, slowperiod=26, signalperiod=9)
@@ -87,6 +110,9 @@ class FeatureEngineer:
     df = self.add_time_features(df)
     df = self.add_interaction_features(df)
     df = self.add_lagged_features(df)
+
+    # Add time_idx for TFT model
+    df['time_idx'] = np.arange(len(df))
 
     df = df.dropna()
 

@@ -4,13 +4,17 @@ import pandas as pd
 from pytorch_forecasting import TemporalFusionTransformer, TimeSeriesDataSet
 from pytorch_forecasting.data import GroupNormalizer
 from pytorch_forecasting.metrics import QuantileLoss
+from lightning.pytorch import LightningModule
 
 from src.config import (
   TFT_HIDDEN_SIZE,
+  TFT_HIDDEN_CONTINUOUS_SIZE,
   TFT_LSTM_LAYERS,
   TFT_ATTENTION_HEADS,
   TFT_DROPOUT,
   TFT_LEARNING_RATE,
+  TFT_BATCH_SIZE,
+  TFT_REDUCE_ON_PLATEAU_PATIENCE,
 )
 
 
@@ -25,6 +29,7 @@ class TFTModel:
     self.tft_dataset = None
 
   def prepare_data(self, df: pd.DataFrame, time_idx_col: str = 'time_idx', target_col: str = 'close', group_id_col: str = 'symbol'):
+    df[group_id_col] = df[group_id_col].astype("category")
     df[time_idx_col] = df.groupby(group_id_col, observed=True).cumcount()
 
     # The FeatureEngineer now adds cyclical time features (sin/cos)
@@ -62,7 +67,7 @@ class TFTModel:
 
     self.tft_dataset = TimeSeriesDataSet(
       df,
-      time_idx=time_idx_col,
+      time_idx='time_idx',
       target=target_col,
       group_ids=[group_id_col],
       min_encoder_length=self.max_encoder_length,
@@ -82,40 +87,75 @@ class TFTModel:
     )
 
     if self.training_cutoff is not None:
-      self.training_data = self.tft_dataset.filter(
-        lambda x: x[time_idx_col] <= self.training_cutoff, deepcopy=True)
-      self.validation_data = self.tft_dataset.filter(
-        lambda x: x[time_idx_col] > self.training_cutoff, deepcopy=True)
+      # Split the data based on time_idx before creating datasets
+      train_df = df[df[time_idx_col] <= self.training_cutoff].copy()
+      val_df = df[df[time_idx_col] > self.training_cutoff].copy()
+      
+      # Create training dataset
+      training_dataset = TimeSeriesDataSet(
+        train_df,
+        time_idx='time_idx',
+        target=target_col,
+        group_ids=[group_id_col],
+        min_encoder_length=self.max_encoder_length,
+        max_encoder_length=self.max_encoder_length,
+        min_prediction_length=self.max_prediction_length,
+        max_prediction_length=self.max_prediction_length,
+        static_categoricals=static_features,
+        time_varying_known_categoricals=time_varying_known_categoricals,
+        time_varying_known_reals=time_varying_known_reals,
+        time_varying_unknown_reals=time_varying_unknown_reals,
+        target_normalizer=GroupNormalizer(
+          groups=[group_id_col], transformation="softplus"),
+        add_relative_time_idx=True,
+        add_target_scales=True,
+        add_encoder_length=True,
+        allow_missing_timesteps=True
+      )
+      
+      # Create validation dataset from training dataset
+      if len(val_df) > 0:
+        self.validation_data = TimeSeriesDataSet.from_dataset(
+          training_dataset, val_df, predict=False)
+      else:
+        self.validation_data = training_dataset
+        
+      self.training_data = training_dataset
     else:
       self.training_data = self.tft_dataset
       # Validate on the whole dataset if no cutoff
       self.validation_data = self.tft_dataset
 
   def build_model(self):
-    if self.tft_dataset is None:
+    # Use training dataset to build model if available, otherwise use full dataset
+    dataset_for_model = self.training_data if self.training_data is not None else self.tft_dataset
+    
+    if dataset_for_model is None:
       raise ValueError("Data not prepared. Call prepare_data() first.")
 
+    print(f"Building model from dataset with {len(dataset_for_model)} samples...")
     self.model = TemporalFusionTransformer.from_dataset(
-      self.tft_dataset,
+      dataset_for_model,
       hidden_size=TFT_HIDDEN_SIZE,
+      hidden_continuous_size=TFT_HIDDEN_CONTINUOUS_SIZE,
       lstm_layers=TFT_LSTM_LAYERS,
       attention_head_size=TFT_ATTENTION_HEADS,
       dropout=TFT_DROPOUT,
       learning_rate=TFT_LEARNING_RATE,
       loss=QuantileLoss(),
-      optimizer="Ranger",
-      reduce_on_plateau_patience=4,
+      optimizer="Adam",
+      reduce_on_plateau_patience=TFT_REDUCE_ON_PLATEAU_PATIENCE,
     )
 
   def train_model(self, trainer):
     if self.training_data is None or self.validation_data is None:
       raise ValueError("Data not prepared. Call prepare_data() first.")
-
+    
     train_dataloader = self.training_data.to_dataloader(
       train=True, batch_size=128, num_workers=0)
     val_dataloader = self.validation_data.to_dataloader(
       train=False, batch_size=128, num_workers=0)
-
+    
     trainer.fit(self.model, train_dataloader, val_dataloader)
 
   def predict(self, data: pd.DataFrame) -> torch.Tensor:

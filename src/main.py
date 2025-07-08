@@ -2,14 +2,16 @@ import time
 from datetime import datetime, timedelta
 import pandas as pd
 import torch
-from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import EarlyStopping
+from lightning.pytorch import Trainer
+from lightning.pytorch.callbacks import EarlyStopping
 import argparse
 
 from src.config import (
   ALPACA_API_KEY, ALPACA_SECRET_KEY, ALPACA_BASE_URL,
   SYMBOL, INITIAL_CAPITAL, MODEL_PATH, TIME_FRAME,
-  TFT_MAX_ENCODER_LENGTH, TFT_MAX_PREDICTION_LENGTH, TRAINING_EPOCHS
+  TFT_MAX_ENCODER_LENGTH, TFT_MAX_PREDICTION_LENGTH, TRAINING_EPOCHS,
+  DATA_DIR, TFT_EARLY_STOP_MONITOR, TFT_EARLY_STOP_MIN_DELTA, 
+  TFT_EARLY_STOP_PATIENCE, TFT_EARLY_STOP_MODE, TFT_GRADIENT_CLIP_VAL
 )
 from src.data_ingestion.data_loader import DataLoader
 from src.feature_engineering.features import FeatureEngineer
@@ -26,17 +28,18 @@ def train_model(data_loader: DataLoader, feature_engineer: FeatureEngineer, tft_
   """
   print("--- Initial Model Training ---")
 
-  # 1. Load historical data
-  print("Loading historical data for training...")
-  # Fetch a year of data ending 1 day ago to ensure we have fresh data for validation
-  end_train_date = datetime.now() - timedelta(days=1)
-  start_train_date = end_train_date - timedelta(days=365)
-
-  historical_df = data_loader.get_data(
-    SYMBOL, start_train_date, end_train_date, use_local=True)
+  # 1. Load historical data - Use ALL available local data for training
+  print("Loading ALL historical data for training...")
+  print(f"Using local cleaned data from {DATA_DIR} directory...")
+  
+  historical_df = data_loader.get_data(SYMBOL, None, None, use_local=True)
   if historical_df.empty:
     print("Could not load historical data for training. Exiting.")
     return False
+  
+  print(f"Loaded {len(historical_df)} rows of historical data")
+  print(f"Date range: {historical_df.index.min()} to {historical_df.index.max()}")
+  print(f"Data spans {(historical_df.index.max() - historical_df.index.min()).days} days")
 
   # 2. Engineer features
   print("Engineering features for training data...")
@@ -45,10 +48,16 @@ def train_model(data_loader: DataLoader, feature_engineer: FeatureEngineer, tft_
 
   # 3. Prepare data and train model
   print("Preparing data for TFT model...")
-  # Use last 20% of data for validation
-  training_cutoff = engineered_df['time_idx'].max(
-  ) - int(0.2 * len(engineered_df))
-  tft_model.training_cutoff = training_cutoff
+  # With 5 years of data, use last 6 months (10%) for validation to ensure robust testing
+  validation_months = 6
+  validation_cutoff = engineered_df['time_idx'].max() - (validation_months * 30 * 24)  # ~6 months of hourly data
+  tft_model.training_cutoff = validation_cutoff
+  
+  train_size = len(engineered_df[engineered_df['time_idx'] <= validation_cutoff])
+  val_size = len(engineered_df[engineered_df['time_idx'] > validation_cutoff])
+  print(f"Training set: {train_size} samples")
+  print(f"Validation set: {val_size} samples")
+  print(f"Train/Val split: {train_size/(train_size+val_size)*100:.1f}% / {val_size/(train_size+val_size)*100:.1f}%")
   tft_model.prepare_data(
     engineered_df, target_col='close', group_id_col='symbol')
 
@@ -57,11 +66,17 @@ def train_model(data_loader: DataLoader, feature_engineer: FeatureEngineer, tft_
 
   print("Training TFT model...")
   early_stop_callback = EarlyStopping(
-    monitor="val_loss", min_delta=1e-4, patience=5, verbose=False, mode="min")
+    monitor=TFT_EARLY_STOP_MONITOR, 
+    min_delta=TFT_EARLY_STOP_MIN_DELTA, 
+    patience=TFT_EARLY_STOP_PATIENCE, 
+    verbose=False, 
+    mode=TFT_EARLY_STOP_MODE
+  )
   trainer = Trainer(
     max_epochs=TRAINING_EPOCHS,
     accelerator="cpu",  # Use "gpu" if available
     devices=1,
+    gradient_clip_val=TFT_GRADIENT_CLIP_VAL,
     callbacks=[early_stop_callback],
     enable_model_summary=False,
     logger=False,

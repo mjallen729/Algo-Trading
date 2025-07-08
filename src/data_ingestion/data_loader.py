@@ -27,20 +27,28 @@ class DataLoader:
     return bars
 
   def load_local_csv(self, symbol: str) -> pd.DataFrame:
-    file_path = os.path.join(DATA_DIR, f"{symbol.lower()}.csv")
+    # Clean the symbol to match the cleaned CSV file names (e.g., "ETH/USD" -> "eth")
+    cleaned_symbol = symbol.split('/')[0].lower()
+    file_path = os.path.join(DATA_DIR, f"{cleaned_symbol}.csv")
     if not os.path.exists(file_path):
-      # Try raw data directory
-      file_path = os.path.join(
-        DATA_DIR, "raw", f"{symbol.lower()}_2020-01-16_2025-01-14.csv")
-      if not os.path.exists(file_path):
-        print(f"Warning: Local CSV for {symbol} not found at {file_path}")
-        return pd.DataFrame()
+      print(f"Warning: Local CSV for {symbol} not found at {file_path}")
+      return pd.DataFrame()
 
-    df = pd.read_csv(file_path, parse_dates=['Date'], index_col='Date')
-    # Rename columns to match Alpaca's output for consistency
+    df = pd.read_csv(file_path)
+    df['Date'] = pd.to_datetime(df[['Year', 'Month', 'Day']])
+    df = df.set_index('Date')
+    df = df.drop(columns=['Symbol', 'Year', 'Month', 'Day'], errors='ignore')
+    
+    # Rename OHLCV columns to match Alpaca's output for consistency
     df = df.rename(columns={
       'Open': 'open', 'High': 'high', 'Low': 'low', 'Close': 'close', 'Volume': 'volume'
     })
+    
+    # Keep additional features available in the cleaned data
+    # Features like Market Cap, Volatility25, SMA25, EMA25, ATR25, RSI25, NextClose
+    print(f"Loaded local data with columns: {list(df.columns)}")
+    print(f"Available additional features: {[col for col in df.columns if col not in ['open', 'high', 'low', 'close', 'volume']]}")
+    
     return df
 
   def get_data(self, symbol: str, start_date: datetime, end_date: datetime, use_local: bool = False) -> pd.DataFrame:
