@@ -1,0 +1,82 @@
+### Work Sprint Summary (2025-07-08)
+
+**Objective:** Enhance trading strategy and feature engineering for improved profitability.
+
+**Changes Implemented:**
+
+1.  **Configurable Signal Thresholds:**
+    *   Added `STRONG_BUY_THRESHOLD`, `BUY_THRESHOLD`, `STRONG_SELL_THRESHOLD`, `SELL_THRESHOLD` to `src/config.py`.
+    *   Updated `src/models/predict.py` to utilize these new configurable thresholds for signal generation.
+
+2.  **Dynamic ATR-Based Stop-Loss:**
+    *   Added `USE_ATR_STOP_LOSS` and `ATR_MULTIPLIER` to `src/config.py`.
+    *   Modified `src/backtesting/tft_strategy.py` to implement ATR-based stop-loss logic.
+    *   Updated `src/risk_management/portfolio.py` to incorporate ATR-based stop-loss calculation and dynamic position sizing based on ATR.
+
+3.  **Enhanced Feature Engineering:**
+    *   Expanded `src/feature_engineering/features.py` to include:
+        *   Additional technical indicators (SMA_50, EMA_50, ADX, CCI, MFI).
+        *   More lagged features (lags: 1, 2, 3, 5, 8 for OHLCV, RSI, ATR, MFI).
+        *   Cyclical time-based features (hour_sin/cos, dayofweek_sin/cos).
+        *   Interaction features (SMA_ratio, price_div_sma50, bb_width).
+    *   Updated `src/models/tft_model.py` to recognize and utilize these new features in the `TimeSeriesDataSet` preparation.
+
+4.  **CRITICAL FIX - TFT Model Training Issues:**
+    *   **Fixed `KeyError: 'time_idx'`** in `tft_model.py` by restructuring train/validation split to avoid filter() issues
+    *   **Fixed LightningModule import** by updating imports from `pytorch_lightning` to `lightning.pytorch` 
+    *   **Fixed "Ranger" optimizer error** by changing to "Adam" optimizer
+    *   **Training now successful** - model trains for 10 epochs and saves to `tft_model.pth`
+    *   Split data creation logic: creates separate train/val datasets instead of using filter() on single dataset
+
+**CRITICAL TRAINING ENHANCEMENT (2025-07-08):**
+✅ **FIXED: Training now uses ALL 5 years of cleaned historical data (2020-2025)**
+- Modified `train_model()` to use `use_local=True` and load full dataset
+- Updated validation split: last 6 months for validation (vs previous 20% of 1 year)
+- Enhanced data loader to utilize pre-calculated features (SMA25, EMA25, ATR25, RSI25, Volatility25, Market Cap)
+- Feature engineering now leverages existing indicators instead of recalculating
+- Training data: ~4.5 years (36K+ hourly samples) vs previous 1 year (8K samples)
+
+**EXPECTED PERFORMANCE IMPROVEMENT:**
+- Much better generalization across different market regimes (bull/bear/sideways)
+- Exposure to major events: COVID crash (2020), DeFi summer, NFT boom, bear market (2022), recovery (2023-2024)
+- More robust validation with 6 months of out-of-sample data
+
+**WORKING STATUS:**
+✅ Model training now works - can run `python -m src.main --mode train`
+✅ TFT model successfully trains and saves
+✅ Now trains on 5 years of data instead of 1 year
+✅ Utilizes pre-calculated features for efficiency
+
+**NEXT STEPS ROADMAP (Prioritized by Profitability):**
+
+**Phase 1: Immediate Testing & Validation**
+- Test backtest: `./env/bin/python -m src.main --mode backtest` 
+- Analyze current strategy performance across market conditions
+- Validate risk mgmt (ATR stop-loss, position sizing)
+- Implement hyperparameter optimization (Optuna) for TFT params + signal thresholds
+
+**Phase 2: Advanced Model Enhancements (HIGHEST PRIORITY)**
+- Multi-asset trading: extend beyond ETH/USD to BTC,DOGE,SHIB,SOL
+- Cross-asset correlation features + portfolio-level risk mgmt
+- Asset-specific static covariates (market cap, volatility regime)
+- Enhanced features: market microstructure, regime detection, momentum/mean-reversion composites
+
+**Phase 3: Cutting-Edge ML**
+- Ensemble: multiple TFT models w/ different horizons + LSTM/GRU comparison
+- Model confidence scoring + uncertainty quantification
+- Dynamic position sizing based on confidence
+- Momentum/trend overlays + pairs trading/arbitrage detection
+
+**Phase 4: Real-World Optimization**
+- Transaction cost modeling: slippage, funding rates, order book impact
+- Live trading infra: real-time retraining, performance monitoring, drift detection
+- Automated model switching on performance degradation
+
+**Phase 5: Data Enhancement**
+- Alt data: on-chain metrics, social sentiment, derivatives data
+- Real-time streaming feature calculation for live trading
+- Adaptive feature selection by market regime
+
+**Common Issues:**
+*   **"module 'src' not found" error:** Run Python scripts from project root `/Users/matt/Documents/Algo-Trading/`
+*   **Must use virtual env:** Use `./env/bin/python` instead of `python`
