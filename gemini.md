@@ -13,4 +13,4 @@ Research is available in the docs/ directory.
 
 Project uses a python virtual environment, so do not manually run any python commands, as they will not execute in the proper env.
 
-Take notes in the docs/notes.txt file (guaranteed exists). Do not delete existing notes, but you may trim them down when taking new ones. These do not need to be human readable, but ensure that your future generations (new chats) can quickly understand the context and progress of implementation, along with next steps. Your goal is to make it so a model with fresh context can arrive and become productive as quickly as possible.
+Take notes in the docs/notes.txt file (guaranteed exists). Do not delete existing notes (unless they are no longer relevent), but you may trim them down when taking new ones. For the sake of minimizing file length / size, these notes do not need to be human readable, but ensure that future you (new chats) will be able to quickly understand the context and progress of implementation, along with next steps. Your goal is to make it so a model with fresh context can arrive and become productive as quickly as possible; notes.txt is your space, utilize it.
