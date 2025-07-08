@@ -18,63 +18,82 @@ class FeatureEngineer:
       print("Skipping technical indicator generation: TA-Lib not available.")
       return df
 
-    # Ensure the DataFrame has the required columns
     if not all(col in df.columns for col in ['open', 'high', 'low', 'close', 'volume']):
       print("Warning: Missing OHLCV data for technical indicators.")
       return df
 
-    # Moving Averages
     df['SMA_10'] = talib.SMA(df['close'], timeperiod=10)
     df['EMA_10'] = talib.EMA(df['close'], timeperiod=10)
+    df['SMA_50'] = talib.SMA(df['close'], timeperiod=50)
+    df['EMA_50'] = talib.EMA(df['close'], timeperiod=50)
 
-    # Relative Strength Index (RSI)
     df['RSI'] = talib.RSI(df['close'], timeperiod=14)
 
-    # Moving Average Convergence Divergence (MACD)
     macd, macdsignal, macdhist = talib.MACD(
       df['close'], fastperiod=12, slowperiod=26, signalperiod=9)
     df['MACD'] = macd
     df['MACD_Signal'] = macdsignal
     df['MACD_Hist'] = macdhist
 
-    # Bollinger Bands
     upper, middle, lower = talib.BBANDS(
       df['close'], timeperiod=20, nbdevup=2, nbdevdn=2, matype=0)
     df['BB_Upper'] = upper
     df['BB_Middle'] = middle
     df['BB_Lower'] = lower
 
-    # Average True Range (ATR)
     df['ATR'] = talib.ATR(df['high'], df['low'], df['close'], timeperiod=14)
 
-    # On-Balance Volume (OBV)
     df['OBV'] = talib.OBV(df['close'], df['volume'])
+
+    df['ADX'] = talib.ADX(df['high'], df['low'], df['close'], timeperiod=14)
+
+    df['CCI'] = talib.CCI(df['high'], df['low'], df['close'], timeperiod=14)
+
+    df['MFI'] = talib.MFI(df['high'], df['low'], df['close'], df['volume'], timeperiod=14)
 
     return df
 
-  def add_lagged_features(self, df: pd.DataFrame, lags: list = [1, 2, 3]) -> pd.DataFrame:
-    for col in ['open', 'high', 'low', 'close', 'volume']:
-      for lag in lags:
-        df[f'{col}_lag_{lag}'] = df[col].shift(lag)
+  def add_lagged_features(self, df: pd.DataFrame, lags: list = [1, 2, 3, 5, 8]) -> pd.DataFrame:
+    for col in ['open', 'high', 'low', 'close', 'volume', 'RSI', 'ATR', 'MFI']:
+        if col in df.columns:
+            for lag in lags:
+                df[f'{col}_lag_{lag}'] = df[col].shift(lag)
     return df
 
   def add_volatility(self, df: pd.DataFrame, window: int = 20) -> pd.DataFrame:
     df['Volatility'] = df['close'].rolling(window=window).std()
+    df['Volatility_pct'] = (df['Volatility'] / df['close']) * 100
+    return df
+    
+  def add_time_features(self, df: pd.DataFrame) -> pd.DataFrame:
+    df['hour_sin'] = np.sin(2 * np.pi * df.index.hour / 24)
+    df['hour_cos'] = np.cos(2 * np.pi * df.index.hour / 24)
+    df['dayofweek_sin'] = np.sin(2 * np.pi * df.index.dayofweek / 7)
+    df['dayofweek_cos'] = np.cos(2 * np.pi * df.index.dayofweek / 7)
+    return df
+    
+  def add_interaction_features(self, df: pd.DataFrame) -> pd.DataFrame:
+    if 'SMA_10' in df.columns and 'SMA_50' in df.columns:
+        df['SMA_ratio'] = df['SMA_10'] / df['SMA_50']
+    if 'close' in df.columns and 'SMA_50' in df.columns:
+        df['price_div_sma50'] = df['close'] / df['SMA_50']
+    if 'BB_Upper' in df.columns and 'BB_Lower' in df.columns:
+        df['bb_width'] = (df['BB_Upper'] - df['BB_Lower']) / df['BB_Middle']
     return df
 
   def engineer_features(self, df: pd.DataFrame) -> pd.DataFrame:
     df = self.add_technical_indicators(df)
-    df = self.add_lagged_features(df)
     df = self.add_volatility(df)
+    df = self.add_time_features(df)
+    df = self.add_interaction_features(df)
+    df = self.add_lagged_features(df)
 
-    # Drop rows with NaN values created by feature engineering
     df = df.dropna()
 
     return df
 
 
 if __name__ == '__main__':
-  # Example Usage
   data = {
     'open': np.random.rand(100) * 100,
     'high': np.random.rand(100) * 100 + 1,

@@ -27,7 +27,8 @@ class TFTModel:
   def prepare_data(self, df: pd.DataFrame, time_idx_col: str = 'time_idx', target_col: str = 'close', group_id_col: str = 'symbol'):
     df[time_idx_col] = df.groupby(group_id_col, observed=True).cumcount()
 
-    # Add time-based features that are known in the future
+    # The FeatureEngineer now adds cyclical time features (sin/cos)
+    # We still need the categorical time features for TFT
     df["month"] = df.index.month.astype(str).astype("category")
     df["day"] = df.index.day.astype(str).astype("category")
     df["weekday"] = df.index.dayofweek.astype(str).astype("category")
@@ -35,14 +36,29 @@ class TFTModel:
 
     static_features = []
     time_varying_known_categoricals = ["month", "day", "weekday", "hour"]
+    
+    time_varying_known_reals = [
+        'hour_sin', 'hour_cos', 'dayofweek_sin', 'dayofweek_cos'
+    ]
+
     time_varying_unknown_reals = [
       target_col, 'open', 'high', 'low', 'volume',
-      'SMA_10', 'EMA_10', 'RSI', 'MACD', 'MACD_Signal', 'MACD_Hist',
-      'BB_Upper', 'BB_Middle', 'BB_Lower', 'ATR', 'OBV', 'Volatility'
+      'SMA_10', 'EMA_10', 'SMA_50', 'EMA_50', 'RSI', 'MACD', 'MACD_Signal', 'MACD_Hist',
+      'BB_Upper', 'BB_Middle', 'BB_Lower', 'ATR', 'OBV', 'ADX', 'CCI', 'MFI',
+      'Volatility', 'Volatility_pct', 'SMA_ratio', 'price_div_sma50', 'bb_width'
     ]
-    # Filter out columns that might not be present (e.g., if TA-lib fails)
-    time_varying_unknown_reals = [
-      col for col in time_varying_unknown_reals if col in df.columns]
+    
+    # Add lagged features to the list of unknown reals
+    lagged_cols = [col for col in df.columns if '_lag_' in col]
+    time_varying_unknown_reals.extend(lagged_cols)
+
+    # Filter out columns that might not be present
+    time_varying_known_reals = [col for col in time_varying_known_reals if col in df.columns]
+    time_varying_unknown_reals = [col for col in time_varying_unknown_reals if col in df.columns]
+    
+    # Ensure no duplicates
+    time_varying_unknown_reals = list(dict.fromkeys(time_varying_unknown_reals))
+
 
     self.tft_dataset = TimeSeriesDataSet(
       df,
@@ -55,6 +71,7 @@ class TFTModel:
       max_prediction_length=self.max_prediction_length,
       static_categoricals=static_features,
       time_varying_known_categoricals=time_varying_known_categoricals,
+      time_varying_known_reals=time_varying_known_reals,
       time_varying_unknown_reals=time_varying_unknown_reals,
       target_normalizer=GroupNormalizer(
         groups=[group_id_col], transformation="softplus"),

@@ -1,6 +1,12 @@
 import pandas as pd
 import torch
 from src.models.tft_model import TFTModel
+from src.config import (
+    STRONG_BUY_THRESHOLD,
+    BUY_THRESHOLD,
+    STRONG_SELL_THRESHOLD,
+    SELL_THRESHOLD,
+)
 
 
 class Predictor:
@@ -28,12 +34,6 @@ class Predictor:
     last_close_price = data['close'].iloc[-1]
     predicted_change_pct = (
       predicted_price - last_close_price) / last_close_price
-
-    # Define thresholds for signals (can be moved to config)
-    STRONG_BUY_THRESHOLD = 0.02
-    BUY_THRESHOLD = 0.005
-    STRONG_SELL_THRESHOLD = -0.02
-    SELL_THRESHOLD = -0.005
 
     signal = "HOLD"
     if predicted_change_pct > STRONG_BUY_THRESHOLD:
