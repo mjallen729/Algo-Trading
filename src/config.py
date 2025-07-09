@@ -22,8 +22,8 @@ ATR_MULTIPLIER = float(os.getenv("ATR_MULTIPLIER", "2.0")) # Multiplier for ATR-
 
 # --- Model & Training Parameters ---
 MODEL_PATH = os.getenv("MODEL_PATH", "tft_model.pth")
-TFT_MAX_ENCODER_LENGTH = int(os.getenv("TFT_MAX_ENCODER_LENGTH", "30"))  # 30 days lookback (optimized for daily data)
-TFT_MAX_PREDICTION_LENGTH = int(os.getenv("TFT_MAX_PREDICTION_LENGTH", "5"))  # 5 days ahead (realistic for crypto)
+TFT_MAX_ENCODER_LENGTH = int(os.getenv("TFT_MAX_ENCODER_LENGTH", "72"))  # 3 days of hourly data
+TFT_MAX_PREDICTION_LENGTH = int(os.getenv("TFT_MAX_PREDICTION_LENGTH", "12"))  # 12 hours ahead
 TRAINING_EPOCHS = int(os.getenv("TRAINING_EPOCHS", "50"))  # 50 epochs (increased from 10 for proper convergence)
 
 # --- TFT Hyperparameters (Research-Optimized for Crypto + M1 Pro) ---

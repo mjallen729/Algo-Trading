@@ -1,4 +1,5 @@
 import time
+import os
 from datetime import datetime, timedelta
 import pandas as pd
 import torch
@@ -29,13 +30,48 @@ def train_model(data_loader: DataLoader, feature_engineer: FeatureEngineer, tft_
   """
   print("--- Initial Model Training ---")
 
-  # 1. Load historical data - Use ALL available local data for training
-  print("Loading ALL historical data for training...")
-  print(f"Using local cleaned data from {DATA_DIR} directory...")
+  # 1. Load historical data - Use Alpaca API for hourly data with caching
+  print("Loading hourly historical data...")
+  # Fetch 2 years of hourly data (enough for training + avoiding API limits)
+  end_date = datetime.now()
+  start_date = end_date - timedelta(days=730)  # 2 years
   
-  historical_df = data_loader.get_data(SYMBOL, None, None, use_local=True)
+  # Check if we have cached hourly data
+  hourly_cache_path = os.path.join(DATA_DIR, f"{SYMBOL.split('/')[0].lower()}_hourly.csv")
+  
+  if os.path.exists(hourly_cache_path):
+    print(f"Loading cached hourly data from {hourly_cache_path}")
+    try:
+      historical_df = pd.read_csv(hourly_cache_path, index_col=0, parse_dates=True)
+      # Check if cached data is recent enough (within last 24 hours)
+      latest_cached = historical_df.index.max()
+      if (datetime.now() - latest_cached).days < 1:
+        print(f"Using cached data (latest: {latest_cached})")
+      else:
+        print("Cached data is outdated, fetching fresh data...")
+        raise ValueError("Outdated cache")
+    except:
+      print("Cache invalid, fetching fresh data...")
+      historical_df = None
+  else:
+    print("No cached data found, fetching from Alpaca API...")
+    historical_df = None
+  
+  # Fetch fresh data if needed
+  if historical_df is None:
+    print(f"Fetching hourly data from {start_date.date()} to {end_date.date()}")
+    historical_df = data_loader.get_data(SYMBOL, start_date, end_date, use_local=False)
+    
+    if not historical_df.empty:
+      # Save to cache
+      print(f"Saving hourly data to cache: {hourly_cache_path}")
+      historical_df.to_csv(hourly_cache_path)
+    else:
+      print("Could not load historical data from Alpaca. Falling back to local daily data...")
+      historical_df = data_loader.get_data(SYMBOL, None, None, use_local=True)
+  
   if historical_df.empty:
-    print("Could not load historical data for training. Exiting.")
+    print("No data available. Exiting.")
     return False
   
   print(f"Loaded {len(historical_df)} rows of historical data")
