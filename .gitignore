@@ -208,4 +208,5 @@ __marimo__/
 
 # User-added
 **/.DS_Store
-**/*/.DS_Store
+**/.DS_Store/*
+checkpoints/
