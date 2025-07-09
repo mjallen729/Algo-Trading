@@ -54,6 +54,13 @@
 
 **READY TO TRAIN:** Run `./env/bin/python -m src.main --mode train`
 
+**CURRENT STATUS (2025-07-08):**
+✅ **ATR Stop Loss: ENABLED BY DEFAULT** 
+- `USE_ATR_STOP_LOSS = True` (default)
+- `ATR_MULTIPLIER = 2.0` 
+- Dynamic stop loss based on market volatility vs fixed 2% stops
+- Implemented in risk_management/portfolio.py + backtesting/tft_strategy.py
+
 **NEXT STEPS ROADMAP (Prioritized by Profitability):**
 
 **Phase 1: Immediate Testing & Validation**
