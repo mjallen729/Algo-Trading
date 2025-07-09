@@ -196,7 +196,7 @@ class TFTModel:
       reduce_on_plateau_patience=TFT_REDUCE_ON_PLATEAU_PATIENCE,
     )
 
-  def train_model(self, trainer):
+  def train_model(self, trainer, ckpt_path=None):
     if self.training_data is None or self.validation_data is None:
       raise ValueError("Data not prepared. Call prepare_data() first.")
     
@@ -205,7 +205,7 @@ class TFTModel:
     val_dataloader = self.validation_data.to_dataloader(
       train=False, batch_size=TFT_BATCH_SIZE, num_workers=TFT_NUM_WORKERS, persistent_workers=True)
     
-    trainer.fit(self.model, train_dataloader, val_dataloader)
+    trainer.fit(self.model, train_dataloader, val_dataloader, ckpt_path=ckpt_path)
 
   def predict(self, data: pd.DataFrame) -> torch.Tensor:
     if self.model is None or self.tft_dataset is None:

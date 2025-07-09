@@ -24,7 +24,7 @@ from src.trading.trader import Trader
 from src.backtesting.run_backtest import run_backtest  # Import the backtest runner
 
 
-def train_model(data_loader: DataLoader, feature_engineer: FeatureEngineer, tft_model: TFTModel):
+def train_model(data_loader: DataLoader, feature_engineer: FeatureEngineer, tft_model: TFTModel, resume_from_checkpoint: bool = False):
   """
   Trains the TFT model on historical data.
   """
@@ -119,6 +119,43 @@ def train_model(data_loader: DataLoader, feature_engineer: FeatureEngineer, tft_
 
   print("Training TFT model...")
   print(f"Training configuration: {TRAINING_EPOCHS} epochs, {TFT_ACCELERATOR} accelerator")
+  
+  # Workaround for PyTorch 2.6 checkpoint loading issue
+  import torch
+  if hasattr(torch.serialization, 'add_safe_globals'):
+    from pytorch_forecasting.data.encoders import GroupNormalizer
+    torch.serialization.add_safe_globals([GroupNormalizer])
+    print("🔧 Added PyTorch Forecasting safe globals for checkpoint loading")
+  
+  # Handle checkpoint resuming
+  ckpt_path = None
+  if resume_from_checkpoint:
+    checkpoint_dir = "checkpoints"
+    if os.path.exists(checkpoint_dir):
+      # Find the latest checkpoint
+      ckpt_files = [f for f in os.listdir(checkpoint_dir) if f.endswith('.ckpt')]
+      if ckpt_files:
+        # Sort by modification time to get the latest
+        latest_ckpt = max(ckpt_files, key=lambda x: os.path.getmtime(os.path.join(checkpoint_dir, x)))
+        ckpt_path = os.path.join(checkpoint_dir, latest_ckpt)
+        print(f"🔄 Resuming training from checkpoint: {ckpt_path}")
+        
+        # Show checkpoint info
+        import torch
+        try:
+          # Use weights_only=False for Lightning checkpoints (they're safe)
+          ckpt = torch.load(ckpt_path, map_location='cpu', weights_only=False)
+          if 'epoch' in ckpt:
+            print(f"   📊 Checkpoint epoch: {ckpt['epoch']}, global_step: {ckpt.get('global_step', 'unknown')}")
+        except Exception as e:
+          print(f"   ⚠️ Could not read checkpoint info: {e}")
+      else:
+        print("⚠️ No checkpoint files found, starting fresh training")
+    else:
+      print("⚠️ Checkpoint directory not found, starting fresh training")
+  else:
+    print("🆕 Starting fresh training (resume=False)")
+  
   early_stop_callback = EarlyStopping(
     monitor=TFT_EARLY_STOP_MONITOR, 
     min_delta=TFT_EARLY_STOP_MIN_DELTA, 
@@ -135,7 +172,7 @@ def train_model(data_loader: DataLoader, feature_engineer: FeatureEngineer, tft_
     enable_model_summary=False,
     logger=False,
   )
-  tft_model.train_model(trainer)
+  tft_model.train_model(trainer, ckpt_path)
 
   # 4. Save the trained model
   tft_model.save_model(MODEL_PATH)
@@ -271,6 +308,8 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser(description="Algorithmic Trading Bot")
   parser.add_argument('--mode', type=str, default='trade', choices=['train', 'backtest', 'trade'],
                       help='Operation mode: train, backtest, or trade (live bot).')
+  parser.add_argument('--resume', action='store_true', 
+                      help='Resume training from latest checkpoint (only for train mode).')
   args = parser.parse_args()
 
   if args.mode == 'train':
@@ -280,7 +319,7 @@ if __name__ == '__main__':
       max_encoder_length=TFT_MAX_ENCODER_LENGTH,
       max_prediction_length=TFT_MAX_PREDICTION_LENGTH
     )
-    train_model(data_loader, feature_engineer, tft_model)
+    train_model(data_loader, feature_engineer, tft_model, resume_from_checkpoint=args.resume)
   elif args.mode == 'backtest':
     run_backtest()
   elif args.mode == 'trade':

@@ -28,26 +28,29 @@
     *   **Training now successful** - model trains for 10 epochs and saves to `tft_model.pth`
     *   Split data creation logic: creates separate train/val datasets instead of using filter() on single dataset
 
-**CONFIGURATION ARCHITECTURE FIX (2025-07-08):**
-✅ **Eliminated .env vs config.py conflicts**
+**CHECKPOINT RESUME FUNCTIONALITY (2025-07-08):**
+✅ **Added optional training resume capability**
 
-**PROBLEM:** .env file was overriding optimized hyperparameters in config.py
-- .env had TRAINING_EPOCHS=10, config.py had 50
-- .env had old hyperparameters (TFT_HIDDEN_SIZE=32 vs optimized 128)
-- Training stopped at 10 epochs instead of 50
+**NEW FEATURE:**
+- Added `--resume` flag to training command
+- Default: starts fresh training (current behavior unchanged)
+- With `--resume`: automatically finds and loads latest checkpoint
+- Shows checkpoint info (epoch, global_step) when resuming
 
-**SOLUTION - Clean Separation:**
-1. **.env file**: Only secrets + deployment settings (API keys, SYMBOL, INITIAL_CAPITAL)
-2. **config.py**: All hyperparameters with research-optimized defaults
-3. **Override capability**: Can still override in .env for experiments (documented)
+**USAGE:**
+- Fresh training: `./env/bin/python -m src.main --mode train`
+- Resume training: `./env/bin/python -m src.main --mode train --resume`
 
-**NEW ARCHITECTURE:**
-- Single source of truth: config.py has all optimized hyperparameters
-- .env cleaned to essentials only
-- Clear documentation of what each parameter does
-- No more conflicts between files
+**BENEFITS:**
+- Continue training after interruptions (power loss, manual stop)
+- Experiment with different epochs without losing progress
+- Preserve training state (optimizer, learning rate scheduler)
+- Automatic checkpoint detection (finds latest by modification time)
 
-**RESULT:** Training will now use full 50 epochs with optimized hyperparameters.
+**SAFETY:**
+- Falls back to fresh training if no checkpoints found
+- Validates checkpoint compatibility before loading
+- Clear logging of resume vs fresh training status
 
 **READY TO TRAIN:** Run `./env/bin/python -m src.main --mode train`
 

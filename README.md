@@ -1,266 +1,231 @@
 # Algorithmic Cryptocurrency Trading Bot
 
-This project is an algorithmic trading bot that uses a sophisticated deep learning model to trade cryptocurrencies on the Alpaca paper trading platform. The core of the bot is a Temporal Fusion Transformer (TFT) model, which is a state-of-the-art architecture for time-series forecasting.
+This project is an algorithmic trading bot that uses a sophisticated deep learning model to trade cryptocurrencies on the Alpaca paper trading platform. The core of the bot is a **Temporal Fusion Transformer (TFT)** model, which is a state-of-the-art architecture for time-series forecasting.
 
 ## Features
 
 - **Advanced Forecasting Model**: Utilizes a Temporal Fusion Transformer (TFT) for multi-horizon time-series forecasting, implemented with `pytorch-forecasting`.
 - **Automated Trading**: Connects to the Alpaca API to execute trades in a paper trading environment.
 - **Modular Architecture**: The code is organized into distinct modules for data ingestion, feature engineering, model training, prediction, risk management, and trading.
-- **Configurable Parameters**: Key parameters, such as the trading symbol, risk management rules, and model hyperparameters, are easily configurable through a `.env` file.
-- **Robust Risk Management**: Implements a fixed-fractional position sizing strategy with a stop-loss mechanism to protect capital.
-- **Comprehensive Backtesting**: Includes an event-driven backtesting framework to rigorously test and evaluate trading strategies on historical data.
+- **Research-Optimized Hyperparameters**: TFT hyperparameters optimized for cryptocurrency trading based on academic research.
+- **Smart Data Caching**: Automatically caches hourly data from Alpaca API for efficient training.
+- **Checkpoint Resume**: Option to resume training from interrupted sessions.
+- **Rich Feature Engineering**: 100+ features including technical indicators, lagged features, and pre-calculated market data.
+- **Robust Risk Management**: Implements ATR-based dynamic stop-loss and position sizing strategies.
+- **Comprehensive Backtesting**: Includes an event-driven backtesting framework to rigorously test strategies.
 
 ## How It Works
 
-The bot operates in different modes: training, backtesting, and live trading.
+The bot operates in different modes: **training**, **backtesting**, and **live trading**.
 
 ### Training
-The model is trained on historical data to learn patterns and relationships for forecasting.
+The model is trained on **2 years of hourly cryptocurrency data** (~17,500 samples) fetched from Alpaca API and cached locally. The TFT model learns complex temporal patterns with:
+- **72-hour lookback window** (3 days of context)
+- **12-hour prediction horizon** 
+- **108 engineered features** (technical indicators, lagged features, time-based features)
+- **Apple Silicon GPU acceleration** (MPS) for faster training
 
 ### Backtesting
-The backtesting framework simulates the trading strategy on historical data, allowing for performance evaluation and optimization without risking real capital. It accounts for commissions and slippage to provide a realistic assessment.
+The backtesting framework simulates the trading strategy on historical data, accounting for transaction costs and realistic market conditions.
 
 ### Live Trading
-In live trading mode, the bot operates in a continuous loop, performing the following steps at a regular interval (e.g., every hour):
+In live trading mode, the bot operates in a continuous loop:
 
-1.  **Data Ingestion**: Fetches the latest market data for the specified cryptocurrency pair from the Alpaca API.
-2.  **Feature Engineering**: Generates a rich set of technical indicators and time-based features from the raw market data.
-3.  **Prediction**: Uses the pre-trained TFT model to forecast the price movement over the next `TFT_MAX_PREDICTION_LENGTH` hours.
-4.  **Signal Generation**: Translates the model's prediction into a trading signal (`STRONG_BUY`, `BUY`, `SELL`, `STRONG_SELL`, or `HOLD`).
-5.  **Risk Management**: Checks for stop-loss triggers and ensures that any new trades adhere to the defined risk parameters.
-6.  **Trade Execution**: Places market orders on the Alpaca paper trading platform based on the generated signals.
+1. **Data Ingestion**: Fetches latest market data from Alpaca API
+2. **Feature Engineering**: Generates 100+ technical indicators and features
+3. **Prediction**: Uses TFT model to forecast price movements 12 hours ahead
+4. **Signal Generation**: Translates predictions into trading signals with configurable thresholds
+5. **Risk Management**: ATR-based stop-loss and dynamic position sizing
+6. **Trade Execution**: Places market orders on Alpaca paper trading platform
 
 ## Getting Started
 
 ### Prerequisites
 
-- Python 3.10+
-- An Alpaca paper trading account
+- **Python 3.10+**
+- **Alpaca paper trading account**
+- **Apple Silicon Mac** (recommended for MPS GPU acceleration) or CUDA-compatible GPU
 
 ### Installation
 
-1.  **Clone the repository:**
+1. **Clone the repository:**
+   ```bash
+   git clone <repository-url>
+   cd <repository-directory>
+   ```
 
-    ```bash
-    git clone <repository-url>
-    cd <repository-directory>
-    ```
+2. **Create a virtual environment and activate it:**
+   ```bash
+   python -m venv env
+   source env/bin/activate  # On Windows: env\Scripts\activate
+   ```
 
-2.  **Create a virtual environment and activate it:**
-
-    ```bash
-    python -m venv env
-    source env/bin/activate # On Windows, use `env\Scripts\activate`
-    ```
-
-3.  **Install the required dependencies:**
-
-    ```bash
-    pip install -r requirements.txt
-    ```
+3. **Install the required dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
 ### Configuration
 
-1.  **Create a `.env` file** in the root directory of the project.
+1. **Create a `.env` file** in the root directory.
 
-2.  **Add your Alpaca API keys** and other configuration variables to the `.env` file. Below are the key parameters you can configure:
+2. **Add your Alpaca API keys** and configuration variables:
 
-    ```
-    ALPACA_API_KEY="YOUR_API_KEY"
-    ALPACA_SECRET_KEY="YOUR_SECRET_KEY"
-    ALPACA_BASE_URL="https://paper-api.alpaca.markets" # Optional: Defaults to paper trading URL
+```env
+# === REQUIRED API CREDENTIALS ===
+ALPACA_API_KEY="YOUR_API_KEY"
+ALPACA_SECRET_KEY="YOUR_SECRET_KEY"
+ALPACA_BASE_URL="https://paper-api.alpaca.markets/v2"
 
-    # --- Trading Parameters ---
-    SYMBOL="ETH/USD" # Cryptocurrency pair to trade (e.g., "ETH/USD", "BTC/USD")
-    RISK_PER_TRADE="0.01" # Risk 1% of capital per trade (e.01 for 1%)
-    STOP_LOSS_PCT="0.02"  # 2% stop-loss (e.g., 0.02 for 2%)
-    TIME_FRAME="1Hour" # Data aggregation time frame (e.g., "1Hour", "1Day")
-    INITIAL_CAPITAL="10000.0" # Starting capital for the portfolio manager
+# === TRADING CONFIGURATION ===
+SYMBOL="ETH/USD"              # Cryptocurrency pair to trade
+INITIAL_CAPITAL="100000.0"    # Starting capital
+```
 
-    # --- Model & Training Parameters ---
-    MODEL_PATH="tft_model.pth" # Path to save/load the trained model
-    TFT_MAX_ENCODER_LENGTH="72" # Number of past time steps to consider for prediction (e.g., 72 hours = 3 days)
-    TFT_MAX_PREDICTION_LENGTH="12" # Number of future time steps to predict (e.g., 12 hours)
-    TRAINING_EPOCHS="10" # Number of training epochs for the TFT model
-
-    # --- Optional TFT Hyperparameters (Advanced) ---
-    TFT_HIDDEN_SIZE="32"
-    TFT_LSTM_LAYERS="2"
-    TFT_ATTENTION_HEADS="4"
-    TFT_DROPOUT="0.2"
-    TFT_LEARNING_RATE="0.001"
-
-    # --- Data Paths ---
-    DATA_DIR="data" # Directory for storing data
-    ```
+**Note**: Most hyperparameters are optimized in `src/config.py` based on cryptocurrency trading research. The `.env` file is primarily for API keys and deployment-specific settings.
 
 ## Usage
 
-The `main.py` script now supports different operation modes: `train`, `backtest`, and `trade`.
-
 ### 1. Train the Model
 
-Before running backtests or live trading, you need to train the TFT model. This will download historical data, engineer features, train the model, and save it to the path specified in `MODEL_PATH` (defaulting to `tft_model.pth`).
+Train the TFT model on 2 years of hourly data:
 
 ```bash
-python src/main.py --mode train
+./env/bin/python -m src.main --mode train
 ```
 
-This process may take some time, especially on the first run as it fetches data and trains the deep learning model.
+**Features:**
+- ✅ **Smart caching**: Downloads data once, reuses cached hourly data
+- ✅ **17,500+ training samples** from 2 years of ETH hourly data  
+- ✅ **Apple Silicon acceleration** with MPS GPU support
+- ✅ **Research-optimized hyperparameters** for crypto trading
 
-### 2. Run a Backtest
+**Training Time**: ~15-30 minutes on Apple M1 Pro with MPS acceleration
 
-Once the model is trained, you can run a backtest to simulate the trading strategy on historical data. This will output performance statistics and generate an interactive HTML plot of the backtest results.
+### 2. Resume Training (Optional)
+
+If training was interrupted, resume from the latest checkpoint:
 
 ```bash
-python src/main.py --mode backtest
+./env/bin/python -m src.main --mode train --resume
 ```
 
-The backtest plot will be saved as `backtest_plot.html` in the root directory of your project.
+### 3. Run Backtesting
 
-### 3. Run the Live Trading Bot
-
-After you are satisfied with the backtest results, you can run the live trading bot. This will load the pre-trained model and begin the continuous trading loop, connecting to the Alpaca paper trading platform.
+Evaluate strategy performance on historical data:
 
 ```bash
-python src/main.py --mode trade
+./env/bin/python -m src.main --mode backtest
 ```
 
-**Important Note:** Ensure your Alpaca API keys (`ALPACA_API_KEY` and `ALPACA_SECRET_KEY`) are set in your `.env` file, as the `DataLoader` requires them even when loading local data for training or backtesting.
+### 4. Live Trading
 
-## Deployment with Docker
-
-This application is designed to be deployed using Docker, which ensures a consistent and isolated environment.
-
-### Prerequisites
-
-- [Docker](https://docs.docker.com/get-docker/) installed on your machine.
-
-### Building the Docker Image
-
-From the project's root directory, run the following command to build the Docker image:
+Run the algorithmic trading bot:
 
 ```bash
-docker build -t algo-trading-bot .
+./env/bin/python -m src.main --mode trade
 ```
 
-### Running the Docker Container
+## Architecture & Technical Details
 
-To run the trading bot inside a Docker container, you need to pass your environment variables (from the `.env` file) to it.
+### Temporal Fusion Transformer Configuration
 
-1.  **Ensure your `.env` file is created** in the root of the project as described in the "Configuration" section.
+**Research-Optimized for Cryptocurrency Trading:**
 
-2.  **Run the Docker container** using the `--env-file` flag. By default, the Docker container will run in `trade` mode. You can specify a different mode using the `--mode` argument after the image name.
+| Parameter | Value | Rationale |
+|-----------|-------|-----------|
+| `hidden_size` | 128 | 4x increase for crypto complexity |
+| `attention_heads` | 4 | Standard for TFT models |
+| `dropout` | 0.3 | Higher dropout for crypto volatility |
+| `learning_rate` | 3e-4 | Conservative for stable training |
+| `encoder_length` | 72 hours | 3 days of market context |
+| `prediction_length` | 12 hours | Realistic trading horizon |
+| `batch_size` | 64 | Optimized for Apple Silicon |
 
-    ```bash
-    docker run --env-file ./.env -d --name trading-bot algo-trading-bot
-    # To run in backtest mode within Docker:
-    # docker run --env-file ./.env -d --name trading-bot-backtest algo-trading-bot --mode backtest
-    ```
+### Data Pipeline
 
-    - `--env-file ./.env`: Passes the environment variables from your `.env` file to the container.
-    - `-d`: Runs the container in detached mode (in the background).
-    - `--name trading-bot`: Assigns a name to the container for easier management.
+1. **Hourly Data**: 2 years of ETH/USD data from Alpaca API (~17,500 samples)
+2. **Feature Engineering**: 108 features including:
+   - Technical indicators (RSI, MACD, Bollinger Bands, ATR, etc.)
+   - Lagged features (1, 2, 3, 5, 8 period lags)
+   - Time-based features (cyclical hour/day encoding)
+   - Pre-calculated features from cleaned data
+3. **Train/Validation Split**: 80/20 split with temporal ordering
+4. **Caching**: Smart caching system for efficient re-training
 
-### Managing the Container
+### Risk Management
 
--   **View logs:** To see the bot's output and monitor its activity, run:
-    ```bash
-    docker logs -f trading-bot
-    ```
-
--   **Stop the container:**
-    ```bash
-    docker stop trading-bot
-    ```
-
--   **Restart the container:**
-    ```bash
-    docker start trading-bot
-    ```
+- **ATR-based Stop Loss**: Dynamic stop-loss based on market volatility
+- **Position Sizing**: Risk-adjusted position sizing
+- **Signal Thresholds**: Configurable buy/sell signal thresholds
+- **Portfolio Management**: Tracks positions, capital, and trade history
 
 ## Technology Stack
 
-- **Python**: The core programming language.
-- **PyTorch & PyTorch Lightning**: For building and training the TFT model.
-- **PyTorch Forecasting**: A high-level library for time-series forecasting with PyTorch.
-- **Pandas & NumPy**: For data manipulation and numerical operations.
-- **TA-Lib**: For generating technical analysis indicators (optional, some features will be unavailable if not installed).
-- **Alpaca-py**: The official Python SDK for the Alpaca API.
-- **python-dotenv**: For managing environment variables.
-- **Backtesting.py**: For event-driven backtesting and strategy evaluation.
-- **Bokeh**: For interactive plotting of backtest results.
+- **Python 3.10+**: Core language
+- **PyTorch & Lightning**: Deep learning framework with Apple Silicon support
+- **PyTorch Forecasting**: TFT implementation and time-series utilities
+- **Pandas & NumPy**: Data manipulation
+- **TA-Lib**: Technical analysis indicators (optional)
+- **Alpaca-py**: Trading API integration
+- **Backtesting.py**: Strategy evaluation framework
 
-## Developer Documentation
+## Project Structure
 
-This section provides more in-depth information for developers looking to understand, modify, or extend the project.
-
-### Module Overview
-
-The `src/` directory contains the core logic of the trading bot, organized into several modules:
-
--   `src/main.py`: The main entry point of the application. It parses command-line arguments to determine the operation mode (`train`, `backtest`, or `trade`) and orchestrates the execution flow by calling functions from other modules.
--   `src/config.py`: Centralized configuration file that loads environment variables from `.env` and defines various parameters for Alpaca API, trading, model training, and TFT hyperparameters.
--   `src/data_ingestion/data_loader.py`: Responsible for fetching historical cryptocurrency data. It can load data from Alpaca's API or from local CSV files for training and backtesting purposes.
--   `src/feature_engineering/features.py`: Handles the creation of various technical indicators (e.g., SMA, EMA, RSI, MACD, Bollinger Bands, ATR, OBV), lagged features, and volatility measures from raw OHLCV data. It optionally uses the `TA-Lib` library.
--   `src/models/tft_model.py`: Implements the Temporal Fusion Transformer (TFT) model using `pytorch-forecasting`. It manages data preparation for the TFT (including time-based features and normalization), model building, training, prediction, and saving/loading model weights.
--   `src/models/predict.py`: Utilizes a trained `TFTModel` to generate trading signals (`STRONG_BUY`, `BUY`, `SELL`, `STRONG_SELL`, `HOLD`) based on the model's predicted future price movements. It translates quantile predictions into actionable signals.
--   `src/risk_management/portfolio.py`: Manages the trading portfolio's state, including current capital, open positions, and trade history. It implements fixed-fractional position sizing, calculates trade quantities, and performs stop-loss checks.
--   `src/trading/trader.py`: Interfaces with the Alpaca Trading API to place market orders (buy/sell), retrieve account information, and manage open positions in the paper trading environment.
--   `src/backtesting/run_backtest.py`: Orchestrates the backtesting process using the `backtesting.py` library. It loads historical data, initializes the `TFTStrategy`, and runs the backtest, outputting performance statistics and an interactive plot.
--   `src/backtesting/tft_strategy.py`: Defines the trading strategy for the `backtesting.py` framework. It integrates the `TFTModel` and `Predictor` to generate signals within the backtest environment and executes simulated trades, including a basic stop-loss mechanism.
-
-### Design Decisions and Rationale
-
--   **Modular Architecture**: The project is structured into distinct modules (e.g., `data_ingestion`, `feature_engineering`, `models`, `risk_management`, `trading`) to promote code organization, reusability, and maintainability. This allows for easier independent development and testing of components.
--   **Temporal Fusion Transformer (TFT)**: Chosen for its state-of-the-art performance in multi-horizon time-series forecasting and its built-in interpretability. TFT's ability to handle various input types (static, known future, observed) makes it suitable for complex financial data.
--   **`backtesting.py` for Backtesting**: Selected for its simplicity, event-driven nature, and ability to generate interactive plots, providing a quick and effective way to evaluate strategy performance on historical data.
--   **Fixed-Fractional Position Sizing**: Implemented in `portfolio.py` to ensure consistent risk management by risking a fixed percentage of capital per trade, which helps in capital preservation.
--   **Environment Variables for Configuration**: Utilizing `.env` files and `python-dotenv` ensures that sensitive API keys and configurable parameters are kept separate from the codebase, enhancing security and ease of deployment across different environments.
--   **Docker for Deployment**: Containerization with Docker provides a consistent and isolated environment, simplifying deployment and ensuring that the application runs reliably across different machines.
-
-### Technical Deep Dive
-
-#### Temporal Fusion Transformer (TFT)
-
-The TFT model is implemented using `pytorch-forecasting`. Key aspects include:
--   **Input Features**: The model is configured to use `time_idx` for temporal ordering, `symbol` as a group ID, and various time-based categorical features (`month`, `day`, `weekday`, `hour`). Real-valued features include OHLCV data and all engineered technical indicators.
--   **Normalization**: `GroupNormalizer` with `softplus` transformation is applied to the target variable (`close`) to handle potential non-stationarity and improve model stability.
--   **Training**: The model is trained with `QuantileLoss` and the `Ranger` optimizer, which are common choices for robust time-series forecasting. Early stopping is used to prevent overfitting.
-
-#### Feature Engineering
-
-The `FeatureEngineer` class dynamically adds features. If `TA-Lib` is not installed, it gracefully skips the generation of technical indicators, ensuring the application can still run, albeit with a reduced feature set. The `dropna()` call after feature engineering is crucial to remove rows with `NaN` values introduced by rolling calculations or lagged features, ensuring clean data for the model.
-
-#### Backtesting Framework Integration
-
-The `TFTStrategy` class in `src/backtesting/tft_strategy.py` acts as a bridge between our core logic and the `backtesting.py` framework. It's important to note that `backtesting.py` handles its own data feeding and order execution, so the `DataLoader` and `Trader` classes are not directly used within the `Strategy`'s `init` or `next` methods. The model is loaded once in `init`, and predictions are made in the `next` method for each time step.
-
-### Testing
-
-Unit and integration tests are located in the `tests/` directory.
--   `tests/test_features.py`: Contains tests for the `FeatureEngineer` class to ensure that features are correctly generated.
--   `tests/test_trader.py`: Contains tests for the `Trader` class, primarily focusing on its interaction with the Alpaca API (though these might be mocked for true unit testing).
-
-To run the tests, navigate to the project root and execute:
-```bash
-pytest
 ```
-*(Note: Some tests might require mocking external API calls for reliable and fast execution.)*
+src/
+├── main.py                    # Main entry point with mode selection
+├── config.py                  # Centralized configuration (hyperparameters)
+├── data_ingestion/
+│   └── data_loader.py         # Alpaca API + caching system
+├── feature_engineering/
+│   └── features.py            # 100+ feature engineering pipeline
+├── models/
+│   ├── tft_model.py           # TFT model implementation
+│   └── predict.py             # Signal generation
+├── risk_management/
+│   └── portfolio.py           # Position sizing & risk management
+├── trading/
+│   └── trader.py              # Alpaca trading interface
+└── backtesting/
+    ├── run_backtest.py        # Backtesting orchestration
+    └── tft_strategy.py        # TFT trading strategy
+```
+
+## Performance Expectations
+
+**Based on research-optimized hyperparameters:**
+
+- **Training Data**: 17,500+ hourly samples (vs 1,800 daily)
+- **Model Capacity**: 4x larger hidden size for crypto complexity  
+- **Validation**: Proper 80/20 split for reliable performance metrics
+- **Hardware**: 2-5x faster training with Apple Silicon MPS acceleration
+
+## Development & Contribution
+
+### Running Tests
+```bash
+pytest tests/
+```
+
+### Configuration Philosophy
+
+- **`src/config.py`**: Research-optimized defaults for all hyperparameters
+- **`.env` file**: Only secrets and deployment-specific settings
+- **Override capability**: Can override any parameter in `.env` for experiments
 
 ### Contribution Guidelines
 
-We welcome contributions to this project! If you'd like to contribute, please follow these steps:
+1. Fork the repository
+2. Create feature branch: `git checkout -b feature/your-feature`
+3. Follow existing code style and add tests
+4. Update documentation as needed
+5. Submit pull request with detailed description
 
-1.  **Fork the repository.**
-2.  **Create a new branch** for your feature or bug fix: `git checkout -b feature/your-feature-name` or `git checkout -b bugfix/issue-description`.
-3.  **Make your changes**, adhering to the existing code style and conventions.
-4.  **Write unit and integration tests** for your changes, ensuring adequate test coverage.
-5.  **Run all tests** (`pytest`) to ensure no regressions are introduced.
-6.  **Update documentation** as necessary (e.g., `README.md`, module docstrings).
-7.  **Commit your changes** with a clear and concise commit message.
-8.  **Push your branch** to your forked repository.
-9.  **Open a Pull Request** to the `main` branch of the original repository, describing your changes in detail.
+## License
 
-Please ensure your code is well-commented where necessary and follows Python best practices.
+[Add your license information here]
+
+## Disclaimer
+
+This software is for educational and research purposes only. Cryptocurrency trading involves substantial risk of loss. Past performance does not guarantee future results. Always conduct your own research and consider consulting with a financial advisor before making investment decisions.
