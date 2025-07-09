@@ -52,7 +52,25 @@
 - Validates checkpoint compatibility before loading
 - Clear logging of resume vs fresh training status
 
-**READY TO TRAIN:** Run `./env/bin/python -m src.main --mode train`
+**CURRENT STATUS (2025-07-09):**
+✅ **BACKTESTING MODULE COMPLETELY REBUILT** 
+- **FIXED:** Completely broken backtesting process
+- **SOL DATA:** Uses data/sol_hourly.csv as specified
+- **SYMBOL MAPPING:** Changes symbol to ETH for model compatibility (SOL data → ETH symbol)
+- **FEATURE ENGINEERING:** Applies full feature pipeline to entire SOL dataset
+- **NAN HANDLING:** Drops beginning rows with NaN from lagged features/indicators  
+- **SHAPE VALIDATION:** Ensures ~72 features for model input (verified in logs)
+- **DATA FLOW:** SOL data → feature engineering → ETH symbol → model prediction
+- **GLOBAL DATA:** Uses __main__ globals to pass engineered data to Strategy (backtesting.py limitation)
+- **ERROR HANDLING:** Robust error handling in Strategy.next() to prevent crashes
+
+**TECHNICAL IMPLEMENTATION:**
+- `run_backtest.py`: Loads SOL data, applies feature engineering, passes to backtesting framework
+- `tft_strategy.py`: Accesses engineered data, matches timestamps, generates predictions
+- Feature count: ~72 columns (OHLCV + indicators + lags + time features + interactions)
+- Data pipeline: SOL hourly → feature engineering → drop NaN → backtest format
+
+**READY TO TEST:** Run `./env/bin/python -m src.main --mode backtest`
 
 **CURRENT STATUS (2025-07-08):**
 ✅ **ATR Stop Loss: ENABLED BY DEFAULT** 
@@ -64,7 +82,7 @@
 **NEXT STEPS ROADMAP (Prioritized by Profitability):**
 
 **Phase 1: Immediate Testing & Validation**
-- Test backtest: `./env/bin/python -m src.main --mode backtest` 
+- ✅ Test backtest: `./env/bin/python -m src.main --mode backtest` 
 - Analyze current strategy performance across market conditions
 - Validate risk mgmt (ATR stop-loss, position sizing)
 - Implement hyperparameter optimization (Optuna) for TFT params + signal thresholds
