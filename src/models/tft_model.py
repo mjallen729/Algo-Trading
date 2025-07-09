@@ -97,9 +97,9 @@ class TFTModel:
       df = df.reset_index(drop=True)
       print("  - Reset DataFrame index to RangeIndex")
     
-    # Ensure time_idx is properly set as integer sequence
-    df[time_idx_col] = range(len(df))
-    print(f"  - Set time_idx from 0 to {df[time_idx_col].max()}")
+    # Ensure time_idx is properly set as integer sequence (already done in feature engineering)
+    # df[time_idx_col] = range(len(df)) # Removed: time_idx should be consistent from feature engineering
+    # print(f"  - Set time_idx from 0 to {df[time_idx_col].max()}") # Removed: time_idx should be consistent from feature engineering
     
     # Check for any NaN values that might cause issues
     nan_cols = df.columns[df.isnull().any()].tolist()
