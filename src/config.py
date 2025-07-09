@@ -30,7 +30,7 @@ TRAINING_EPOCHS = int(os.getenv("TRAINING_EPOCHS", "50"))  # 50 epochs (increase
 TFT_HIDDEN_SIZE = int(os.getenv("TFT_HIDDEN_SIZE", "128"))  # 4x increase for crypto complexity
 TFT_HIDDEN_CONTINUOUS_SIZE = int(os.getenv("TFT_HIDDEN_CONTINUOUS_SIZE", "32"))  # 4x increase for rich features
 TFT_LSTM_LAYERS = int(os.getenv("TFT_LSTM_LAYERS", "2"))  # 2 layers optimal for most cases
-TFT_ATTENTION_HEADS = int(os.getenv("TFT_ATTENTION_HEADS", "2"))  # 2 heads for short-term crypto patterns
+TFT_ATTENTION_HEADS = int(os.getenv("TFT_ATTENTION_HEADS", "4"))  # 4 heads standard for TFT (research default)
 TFT_DROPOUT = float(os.getenv("TFT_DROPOUT", "0.3"))  # Higher dropout for crypto noise
 TFT_LEARNING_RATE = float(os.getenv("TFT_LEARNING_RATE", "3e-4"))  # Conservative LR for stability
 
