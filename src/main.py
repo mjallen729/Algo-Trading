@@ -40,18 +40,30 @@ def train_model(data_loader: DataLoader, feature_engineer: FeatureEngineer, tft_
   hourly_cache_path = os.path.join(DATA_DIR, f"{SYMBOL.split('/')[0].lower()}_hourly.csv")
   
   if os.path.exists(hourly_cache_path):
-    print(f"Loading cached hourly data from {hourly_cache_path}")
+    print(f"Found cached hourly data at {hourly_cache_path}")
     try:
       historical_df = pd.read_csv(hourly_cache_path, index_col=0, parse_dates=True)
+      print(f"Loaded {len(historical_df)} rows from cache")
+      
       # Check if cached data is recent enough (within last 24 hours)
       latest_cached = historical_df.index.max()
-      if (datetime.now() - latest_cached).days < 1:
-        print(f"Using cached data (latest: {latest_cached})")
+      current_time = datetime.now()
+      
+      # Handle timezone-aware vs naive datetime comparison
+      if latest_cached.tz is not None:
+        current_time = current_time.replace(tzinfo=latest_cached.tz)
+      
+      hours_old = (current_time - latest_cached).total_seconds() / 3600
+      print(f"Cache age: {hours_old:.1f} hours (latest: {latest_cached})")
+      
+      if hours_old < 24:
+        print(f"✅ Using cached data (fresh enough)")
       else:
-        print("Cached data is outdated, fetching fresh data...")
+        print(f"⚠️ Cached data is {hours_old:.1f} hours old, fetching fresh data...")
         raise ValueError("Outdated cache")
-    except:
-      print("Cache invalid, fetching fresh data...")
+    except Exception as e:
+      print(f"❌ Cache error: {e}")
+      print("Fetching fresh data from Alpaca API...")
       historical_df = None
   else:
     print("No cached data found, fetching from Alpaca API...")
@@ -87,14 +99,10 @@ def train_model(data_loader: DataLoader, feature_engineer: FeatureEngineer, tft_
   print("Preparing data for TFT model...")
   # With 5 years of daily data, use last 6 months for validation
   total_samples = len(engineered_df)
-  validation_days = 180  # 6 months
-  validation_cutoff = total_samples - validation_days
+  validation_percentage = 0.2  # 20% for validation (standard)
+  validation_cutoff = int(total_samples * (1 - validation_percentage))
   
-  # Ensure we have a reasonable training set (at least 80% of data)
-  min_training_samples = int(0.8 * total_samples)
-  if validation_cutoff < min_training_samples:
-    validation_cutoff = min_training_samples
-    print(f"Adjusted validation cutoff to ensure sufficient training data")
+  print(f"Using 80/20 train/val split on {total_samples} samples")
   
   tft_model.training_cutoff = validation_cutoff
   
