@@ -210,3 +210,4 @@ __marimo__/
 **/.DS_Store
 **/.DS_Store/*
 checkpoints/
+tft_model.pth
