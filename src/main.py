@@ -49,9 +49,17 @@ def train_model(data_loader: DataLoader, feature_engineer: FeatureEngineer, tft_
 
   # 3. Prepare data and train model
   print("Preparing data for TFT model...")
-  # With 5 years of data, use last 6 months (10%) for validation to ensure robust testing
-  validation_months = 6
-  validation_cutoff = engineered_df['time_idx'].max() - (validation_months * 30 * 24)  # ~6 months of hourly data
+  # With 5 years of daily data, use last 6 months for validation
+  total_samples = len(engineered_df)
+  validation_days = 180  # 6 months
+  validation_cutoff = total_samples - validation_days
+  
+  # Ensure we have a reasonable training set (at least 80% of data)
+  min_training_samples = int(0.8 * total_samples)
+  if validation_cutoff < min_training_samples:
+    validation_cutoff = min_training_samples
+    print(f"Adjusted validation cutoff to ensure sufficient training data")
+  
   tft_model.training_cutoff = validation_cutoff
   
   train_size = len(engineered_df[engineered_df['time_idx'] <= validation_cutoff])
@@ -66,6 +74,7 @@ def train_model(data_loader: DataLoader, feature_engineer: FeatureEngineer, tft_
   tft_model.build_model()
 
   print("Training TFT model...")
+  print(f"Training configuration: {TRAINING_EPOCHS} epochs, {TFT_ACCELERATOR} accelerator")
   early_stop_callback = EarlyStopping(
     monitor=TFT_EARLY_STOP_MONITOR, 
     min_delta=TFT_EARLY_STOP_MIN_DELTA, 

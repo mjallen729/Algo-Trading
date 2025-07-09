@@ -30,70 +30,97 @@ class TFTModel:
     self.tft_dataset = None
 
   def prepare_data(self, df: pd.DataFrame, time_idx_col: str = 'time_idx', target_col: str = 'close', group_id_col: str = 'symbol'):
-    df[group_id_col] = df[group_id_col].astype("category")
-    df[time_idx_col] = df.groupby(group_id_col, observed=True).cumcount()
-
-    # The FeatureEngineer now adds cyclical time features (sin/cos)
-    # We still need the categorical time features for TFT
-    df["month"] = df.index.month.astype(str).astype("category")
-    df["day"] = df.index.day.astype(str).astype("category")
-    df["weekday"] = df.index.dayofweek.astype(str).astype("category")
-    df["hour"] = df.index.hour.astype(str).astype("category")
-
-    static_features = []
-    time_varying_known_categoricals = ["month", "day", "weekday", "hour"]
+    # Make a copy to avoid modifying the original
+    df = df.copy()
     
-    time_varying_known_reals = [
-        'hour_sin', 'hour_cos', 'dayofweek_sin', 'dayofweek_cos'
-    ]
+    # Set up categorical and time index columns
+    df[group_id_col] = df[group_id_col].astype("category")
+    if time_idx_col not in df.columns:
+      df[time_idx_col] = df.groupby(group_id_col, observed=True).cumcount()
 
-    time_varying_unknown_reals = [
-      target_col, 'open', 'high', 'low', 'volume',
+    # Convert time features to categorical (should already exist from feature engineering)
+    if 'month' in df.columns:
+      df["month"] = df["month"].astype(str).astype("category")
+    if 'day' in df.columns:
+      df["day"] = df["day"].astype(str).astype("category") 
+    if 'weekday' in df.columns:
+      df["weekday"] = df["weekday"].astype(str).astype("category")
+    if 'hour' in df.columns:
+      df["hour"] = df["hour"].astype(str).astype("category")
+    
+    static_features = []
+    
+    # Time varying categorical features (only include if they exist)
+    available_time_categoricals = ["month", "day", "weekday", "hour"]
+    time_varying_known_categoricals = [col for col in available_time_categoricals if col in df.columns]
+    
+    # Time varying known real features (cyclical time features)
+    available_time_reals = ['hour_sin', 'hour_cos', 'dayofweek_sin', 'dayofweek_cos']
+    time_varying_known_reals = [col for col in available_time_reals if col in df.columns]
+
+    # Base OHLCV features
+    base_features = [target_col, 'open', 'high', 'low', 'volume']
+    
+    # Technical indicators that might be available
+    technical_indicators = [
       'SMA_10', 'EMA_10', 'SMA_50', 'EMA_50', 'RSI', 'MACD', 'MACD_Signal', 'MACD_Hist',
       'BB_Upper', 'BB_Middle', 'BB_Lower', 'ATR', 'OBV', 'ADX', 'CCI', 'MFI',
       'Volatility', 'Volatility_pct', 'SMA_ratio', 'price_div_sma50', 'bb_width'
     ]
     
+    # Pre-calculated features from cleaned data
+    precalc_features = ['SMA25', 'EMA25', 'ATR25', 'RSI25', 'Volatility25', 'Market Cap']
+    
+    # Combine all potential features
+    potential_features = base_features + technical_indicators + precalc_features
+    
+    # Only include features that actually exist in the DataFrame
+    time_varying_unknown_reals = [col for col in potential_features if col in df.columns]
+
     # Add lagged features to the list of unknown reals
     lagged_cols = [col for col in df.columns if '_lag_' in col]
     time_varying_unknown_reals.extend(lagged_cols)
-
-    # Filter out columns that might not be present
-    time_varying_known_reals = [col for col in time_varying_known_reals if col in df.columns]
-    time_varying_unknown_reals = [col for col in time_varying_unknown_reals if col in df.columns]
     
     # Ensure no duplicates
     time_varying_unknown_reals = list(dict.fromkeys(time_varying_unknown_reals))
-
-
-    self.tft_dataset = TimeSeriesDataSet(
-      df,
-      time_idx='time_idx',
-      target=target_col,
-      group_ids=[group_id_col],
-      min_encoder_length=self.max_encoder_length,
-      max_encoder_length=self.max_encoder_length,
-      min_prediction_length=self.max_prediction_length,
-      max_prediction_length=self.max_prediction_length,
-      static_categoricals=static_features,
-      time_varying_known_categoricals=time_varying_known_categoricals,
-      time_varying_known_reals=time_varying_known_reals,
-      time_varying_unknown_reals=time_varying_unknown_reals,
-      target_normalizer=GroupNormalizer(
-        groups=[group_id_col], transformation="softplus"),
-      add_relative_time_idx=True,
-      add_target_scales=True,
-      add_encoder_length=True,
-      allow_missing_timesteps=True
-    )
+    
+    print(f"TFT Dataset setup:")
+    print(f"  - Categorical features: {time_varying_known_categoricals}")
+    print(f"  - Known real features: {time_varying_known_reals}")
+    print(f"  - Unknown real features: {len(time_varying_unknown_reals)} features")
+    print(f"  - Lagged features: {len(lagged_cols)} features")
+    print(f"  - DataFrame shape: {df.shape}")
+    print(f"  - DataFrame index type: {type(df.index)}")
+    
+    # Ensure DataFrame has a proper integer index
+    if not isinstance(df.index, pd.RangeIndex):
+      df = df.reset_index(drop=True)
+      print("  - Reset DataFrame index to RangeIndex")
+    
+    # Ensure time_idx is properly set as integer sequence
+    df[time_idx_col] = range(len(df))
+    print(f"  - Set time_idx from 0 to {df[time_idx_col].max()}")
+    
+    # Check for any NaN values that might cause issues
+    nan_cols = df.columns[df.isnull().any()].tolist()
+    if nan_cols:
+      print(f"  - Warning: NaN values found in columns: {nan_cols}")
+      df = df.ffill().bfill()
+      print("  - Filled NaN values using forward/backward fill")
 
     if self.training_cutoff is not None:
       # Split the data based on time_idx before creating datasets
       train_df = df[df[time_idx_col] <= self.training_cutoff].copy()
       val_df = df[df[time_idx_col] > self.training_cutoff].copy()
       
-      # Create training dataset
-      training_dataset = TimeSeriesDataSet(
+      print(f"  - Training data: {len(train_df)} samples (time_idx 0 to {self.training_cutoff})")
+      print(f"  - Validation data: {len(val_df)} samples (time_idx {self.training_cutoff+1} to {df[time_idx_col].max()})")
+      
+      if len(train_df) == 0:
+        raise ValueError(f"Training set is empty! training_cutoff={self.training_cutoff}, max_time_idx={df[time_idx_col].max()}")
+      
+      # Create training dataset first
+      self.training_data = TimeSeriesDataSet(
         train_df,
         time_idx='time_idx',
         target=target_col,
@@ -114,17 +141,38 @@ class TFTModel:
         allow_missing_timesteps=True
       )
       
-      # Create validation dataset from training dataset
-      if len(val_df) > 0:
-        self.validation_data = TimeSeriesDataSet.from_dataset(
-          training_dataset, val_df, predict=False)
-      else:
-        self.validation_data = training_dataset
-        
-      self.training_data = training_dataset
+      # Create validation dataset from the training dataset template
+      self.validation_data = TimeSeriesDataSet.from_dataset(
+        self.training_data, val_df, predict=True, stop_randomization=True
+      )
+      
+      # Set the main dataset as training data
+      self.tft_dataset = self.training_data
+      
     else:
+      # Use entire dataset for training if no cutoff specified
+      self.tft_dataset = TimeSeriesDataSet(
+        df,
+        time_idx='time_idx',
+        target=target_col,
+        group_ids=[group_id_col],
+        min_encoder_length=self.max_encoder_length,
+        max_encoder_length=self.max_encoder_length,
+        min_prediction_length=self.max_prediction_length,
+        max_prediction_length=self.max_prediction_length,
+        static_categoricals=static_features,
+        time_varying_known_categoricals=time_varying_known_categoricals,
+        time_varying_known_reals=time_varying_known_reals,
+        time_varying_unknown_reals=time_varying_unknown_reals,
+        target_normalizer=GroupNormalizer(
+          groups=[group_id_col], transformation="softplus"),
+        add_relative_time_idx=True,
+        add_target_scales=True,
+        add_encoder_length=True,
+        allow_missing_timesteps=True
+      )
+      
       self.training_data = self.tft_dataset
-      # Validate on the whole dataset if no cutoff
       self.validation_data = self.tft_dataset
 
   def build_model(self):
@@ -153,9 +201,9 @@ class TFTModel:
       raise ValueError("Data not prepared. Call prepare_data() first.")
     
     train_dataloader = self.training_data.to_dataloader(
-      train=True, batch_size=TFT_BATCH_SIZE, num_workers=TFT_NUM_WORKERS)
+      train=True, batch_size=TFT_BATCH_SIZE, num_workers=TFT_NUM_WORKERS, persistent_workers=True)
     val_dataloader = self.validation_data.to_dataloader(
-      train=False, batch_size=TFT_BATCH_SIZE, num_workers=TFT_NUM_WORKERS)
+      train=False, batch_size=TFT_BATCH_SIZE, num_workers=TFT_NUM_WORKERS, persistent_workers=True)
     
     trainer.fit(self.model, train_dataloader, val_dataloader)
 
@@ -163,28 +211,26 @@ class TFTModel:
     if self.model is None or self.tft_dataset is None:
       raise ValueError("Model not built or dataset not prepared.")
 
-    # Create a dataloader for prediction
-    predict_dataset = TimeSeriesDataSet.from_dataset(
-      self.tft_dataset, data, predict=True, stop_after_last_index=True)
-    predict_dataloader = predict_dataset.to_dataloader(
+    # Create a prediction dataset from the input data
+    prediction_dataset = TimeSeriesDataSet.from_dataset(
+      self.tft_dataset, data, predict=True)
+    prediction_dataloader = prediction_dataset.to_dataloader(
       train=False, batch_size=1)
 
-    # Raw predictions are quantile predictions
-    raw_predictions, _ = self.model.predict(predict_dataloader, return_x=True)
-    return raw_predictions
+    # Make predictions
+    predictions = self.model.predict(prediction_dataloader, mode="prediction")
+    return predictions
 
   def save_model(self, path: str):
-    if self.model:
-      torch.save(self.model.state_dict(), path)
+    if self.model is None:
+      raise ValueError("No model to save.")
+    torch.save(self.model.state_dict(), path)
 
-  def load_model(self, path: str, map_location=None):
-    self.build_model()  # Build model structure first
-    try:
-      self.model.load_state_dict(torch.load(path, map_location=map_location))
-      self.model.eval()  # Set to evaluation mode
-      print(f"Successfully loaded model from {path}")
-    except FileNotFoundError:
-      print(
-        f"Warning: Model file not found at {path}. A new model will be trained.")
-    except Exception as e:
-      print(f"Error loading model: {e}. A new model will be trained.")
+  def load_model(self, path: str):
+    if self.tft_dataset is None:
+      raise ValueError(
+        "Dataset not prepared. Call prepare_data() before loading model.")
+    # First build the model architecture
+    self.build_model()
+    # Then load the saved weights
+    self.model.load_state_dict(torch.load(path, map_location='cpu'))

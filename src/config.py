@@ -22,22 +22,22 @@ ATR_MULTIPLIER = float(os.getenv("ATR_MULTIPLIER", "2.0")) # Multiplier for ATR-
 
 # --- Model & Training Parameters ---
 MODEL_PATH = os.getenv("MODEL_PATH", "tft_model.pth")
-TFT_MAX_ENCODER_LENGTH = int(os.getenv("TFT_MAX_ENCODER_LENGTH", "72")) # Use 3 days of data
-TFT_MAX_PREDICTION_LENGTH = int(os.getenv("TFT_MAX_PREDICTION_LENGTH", "12")) # Predict 12 hours ahead
-TRAINING_EPOCHS = int(os.getenv("TRAINING_EPOCHS", "50")) # Increased from 10 to 50
+TFT_MAX_ENCODER_LENGTH = int(os.getenv("TFT_MAX_ENCODER_LENGTH", "30"))  # 30 days lookback (optimized for daily data)
+TFT_MAX_PREDICTION_LENGTH = int(os.getenv("TFT_MAX_PREDICTION_LENGTH", "5"))  # 5 days ahead (realistic for crypto)
+TRAINING_EPOCHS = int(os.getenv("TRAINING_EPOCHS", "50"))  # 50 epochs (increased from 10 for proper convergence)
 
-# --- TFT Hyperparameters ---
-TFT_HIDDEN_SIZE = int(os.getenv("TFT_HIDDEN_SIZE", "128")) # Increased from 32 to 128 for crypto complexity
-TFT_HIDDEN_CONTINUOUS_SIZE = int(os.getenv("TFT_HIDDEN_CONTINUOUS_SIZE", "32")) # Increased from 8 to 32
-TFT_LSTM_LAYERS = int(os.getenv("TFT_LSTM_LAYERS", "2")) # Keep at 2 (optimal for most cases)
-TFT_ATTENTION_HEADS = int(os.getenv("TFT_ATTENTION_HEADS", "2")) # Reduced from 4 to 2 for crypto short-term patterns
-TFT_DROPOUT = float(os.getenv("TFT_DROPOUT", "0.3")) # Increased from 0.2 to 0.3 for crypto volatility
-TFT_LEARNING_RATE = float(os.getenv("TFT_LEARNING_RATE", "3e-4")) # Reduced from 1e-3 to 3e-4 for stability
+# --- TFT Hyperparameters (Research-Optimized for Crypto + M1 Pro) ---
+TFT_HIDDEN_SIZE = int(os.getenv("TFT_HIDDEN_SIZE", "128"))  # 4x increase for crypto complexity
+TFT_HIDDEN_CONTINUOUS_SIZE = int(os.getenv("TFT_HIDDEN_CONTINUOUS_SIZE", "32"))  # 4x increase for rich features
+TFT_LSTM_LAYERS = int(os.getenv("TFT_LSTM_LAYERS", "2"))  # 2 layers optimal for most cases
+TFT_ATTENTION_HEADS = int(os.getenv("TFT_ATTENTION_HEADS", "2"))  # 2 heads for short-term crypto patterns
+TFT_DROPOUT = float(os.getenv("TFT_DROPOUT", "0.3"))  # Higher dropout for crypto noise
+TFT_LEARNING_RATE = float(os.getenv("TFT_LEARNING_RATE", "3e-4"))  # Conservative LR for stability
 
-# --- Training Hyperparameters ---
-TFT_BATCH_SIZE = int(os.getenv("TFT_BATCH_SIZE", "64")) # Reduced from 128 to 64 for M1 Pro memory efficiency
-TFT_REDUCE_ON_PLATEAU_PATIENCE = int(os.getenv("TFT_REDUCE_ON_PLATEAU_PATIENCE", "6")) # Increased from 4 to 6
-TFT_GRADIENT_CLIP_VAL = float(os.getenv("TFT_GRADIENT_CLIP_VAL", "0.5")) # Increased from 0.1 to 0.5
+# --- Training Hyperparameters (M1 Pro Optimized) ---
+TFT_BATCH_SIZE = int(os.getenv("TFT_BATCH_SIZE", "64"))  # Memory-efficient for MPS
+TFT_REDUCE_ON_PLATEAU_PATIENCE = int(os.getenv("TFT_REDUCE_ON_PLATEAU_PATIENCE", "6"))  # More patience
+TFT_GRADIENT_CLIP_VAL = float(os.getenv("TFT_GRADIENT_CLIP_VAL", "0.5"))  # Gradient stability
 
 # --- Early Stopping Hyperparameters ---
 TFT_EARLY_STOP_MONITOR = os.getenv("TFT_EARLY_STOP_MONITOR", "val_loss")

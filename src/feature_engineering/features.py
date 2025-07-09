@@ -89,10 +89,22 @@ class FeatureEngineer:
     return df
     
   def add_time_features(self, df: pd.DataFrame) -> pd.DataFrame:
+    # Ensure we have a proper datetime index
+    if not isinstance(df.index, pd.DatetimeIndex):
+      print("Warning: DataFrame doesn't have DatetimeIndex for time features")
+      return df
+      
     df['hour_sin'] = np.sin(2 * np.pi * df.index.hour / 24)
     df['hour_cos'] = np.cos(2 * np.pi * df.index.hour / 24)
     df['dayofweek_sin'] = np.sin(2 * np.pi * df.index.dayofweek / 7)
     df['dayofweek_cos'] = np.cos(2 * np.pi * df.index.dayofweek / 7)
+    
+    # Also create categorical versions for TFT
+    df['month'] = df.index.month
+    df['day'] = df.index.day
+    df['weekday'] = df.index.dayofweek
+    df['hour'] = df.index.hour
+    
     return df
     
   def add_interaction_features(self, df: pd.DataFrame) -> pd.DataFrame:

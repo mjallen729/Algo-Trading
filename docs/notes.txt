@@ -28,35 +28,26 @@
     *   **Training now successful** - model trains for 10 epochs and saves to `tft_model.pth`
     *   Split data creation logic: creates separate train/val datasets instead of using filter() on single dataset
 
-**HYPERPARAMETER OPTIMIZATION (2025-07-08):**
-✅ **Optimized for Apple M1 Pro + 16GB + 5 years crypto data**
+**CONFIGURATION ARCHITECTURE FIX (2025-07-08):**
+✅ **Eliminated .env vs config.py conflicts**
 
-**KEY OPTIMIZATIONS MADE:**
-- TFT_HIDDEN_SIZE: 32 → 128 (4x increase for crypto complexity)
-- TFT_HIDDEN_CONTINUOUS_SIZE: 8 → 32 (4x increase for richer features)
-- TFT_ATTENTION_HEADS: 4 → 2 (reduced for crypto short-term patterns)
-- TFT_DROPOUT: 0.2 → 0.3 (increased for crypto volatility/noise)
-- TFT_LEARNING_RATE: 1e-3 → 3e-4 (reduced for stability with larger model)
-- TRAINING_EPOCHS: 10 → 50 (5x increase for proper convergence)
-- TFT_BATCH_SIZE: 128 → 64 (optimized for M1 Pro memory efficiency)
-- TFT_GRADIENT_CLIP_VAL: 0.1 → 0.5 (increased for gradient stability)
-- TFT_EARLY_STOP_PATIENCE: 5 → 8 (more patience for larger model)
-- TFT_ACCELERATOR: "cpu" → "mps" (Apple Silicon GPU acceleration)
-- TFT_NUM_WORKERS: 0 → 4 (utilize M1 Pro's 10 cores efficiently)
+**PROBLEM:** .env file was overriding optimized hyperparameters in config.py
+- .env had TRAINING_EPOCHS=10, config.py had 50
+- .env had old hyperparameters (TFT_HIDDEN_SIZE=32 vs optimized 128)
+- Training stopped at 10 epochs instead of 50
 
-**RATIONALE (based on research):**
-- Larger hidden_size for crypto complexity and 5-year dataset
-- Lower attention heads for short-term crypto patterns (vs long-term forecasting)
-- Higher dropout for noisy crypto market data
-- Conservative learning rate for stable training
-- MPS acceleration for 2-5x speedup on Apple Silicon
-- Batch size optimized for 16GB memory + MPS efficiency
+**SOLUTION - Clean Separation:**
+1. **.env file**: Only secrets + deployment settings (API keys, SYMBOL, INITIAL_CAPITAL)
+2. **config.py**: All hyperparameters with research-optimized defaults
+3. **Override capability**: Can still override in .env for experiments (documented)
 
-**EXPECTED IMPROVEMENTS:**
-- Better feature representation (4x model capacity)
-- More stable training (lower LR, higher clip val)
-- Faster training (MPS + optimized batch/workers)
-- Better generalization (higher dropout, more epochs)
+**NEW ARCHITECTURE:**
+- Single source of truth: config.py has all optimized hyperparameters
+- .env cleaned to essentials only
+- Clear documentation of what each parameter does
+- No more conflicts between files
+
+**RESULT:** Training will now use full 50 epochs with optimized hyperparameters.
 
 **READY TO TRAIN:** Run `./env/bin/python -m src.main --mode train`
 
