@@ -2,7 +2,7 @@ import pandas as pd
 from pytorch_forecasting import GroupNormalizer, TimeSeriesDataSet
 
 """
-INBOUND DATA (crypro_processed.csv)
+INBOUND DATA (crypto_processed.csv)
   0   time_idx     1120061 non-null  int64
   1   symbol       1120061 non-null  object
   2   open         1120061 non-null  float64
