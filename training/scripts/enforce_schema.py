@@ -3,6 +3,9 @@ Adjust the schema to match standard OHLCV data pipelines. This will overwrite th
 old data csv (an original still exists in the zip).
 
 This should only be run once.
+
+Valid schema:
+[ date, open, high, low, close, volume, token ]
 """
 
 import pandas as pd
