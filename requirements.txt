@@ -1,0 +1,8 @@
+alpaca-py
+pandas
+numpy
+torch
+pytorch-forecasting
+pytorch-lightning
+backtesting
+bokeh
