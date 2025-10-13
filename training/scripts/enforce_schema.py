@@ -2,7 +2,7 @@
 Adjust the schema to match standard OHLCV data pipelines. This will overwrite the
 old data csv (an original still exists in the zip).
 
-This should only be run once.
+This should only be run once (hence why it's in scripts).
 
 Valid schema:
 [ date, open, high, low, close, volume, token ]
