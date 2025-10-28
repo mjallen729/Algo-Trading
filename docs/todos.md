@@ -1,5 +1,5 @@
-[X] Preprocess data (feature engineering, etc.)
+[X] Visualize, analyze, & preprocess data (feature engineering, etc.)
 [ ] Create the TimeSeriesDataSet object (with normalizers)
 [ ] Create the model with chosen architecture
-[ ] Optimize hyper parameters (via micro training)
+[ ] Optimize hyper parameters
 [ ] Train the model and save (cloud?)
