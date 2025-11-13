@@ -213,3 +213,4 @@ checkpoints/
 tft_model.pth
 lightning_logs/*
 training/data/preprocessed/*
+*.pkl
