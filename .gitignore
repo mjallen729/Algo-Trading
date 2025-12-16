@@ -214,4 +214,7 @@ tft_model.pth
 lightning_logs/*
 training/data/preprocessed/*
 *.pkl
-tokens_historical/
+
+# Ignore everything in data/archive except .7z files
+data/archive/*
+!data/archive/*.7z
