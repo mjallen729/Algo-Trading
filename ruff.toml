@@ -1,4 +1,5 @@
 # ruff.toml
+extend-include = ["*.ipynb"]
 line-length = 88
 indent-width = 2
 
