@@ -212,9 +212,8 @@ __marimo__/
 checkpoints/
 tft_model.pth
 lightning_logs/*
-training/data/preprocessed/*
 *.pkl
 
-# Ignore everything in data/archive except .7z files
-data/archive/*
-!data/archive/*.7z
+# Ignore all csv files in the data directory
+data/**/*.csv
+
