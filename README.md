@@ -17,13 +17,13 @@ This project implements a machine learning pipeline for cryptocurrency price for
 ### Obstacles
 
 #### Data Integrity
-The initial dataset, merged from multiple Alpaca API fetches, contained 10,735 missing hourly timesteps across tokens. Some gaps spanned entire days — the largest being 784 hours (~33 days) for a single token. This rendered the merged dataset unusable for sequential time series modeling, requiring a switch to a bulk historical data source. After reprocessing, 108,270 rows were dropped during feature engineering (log return NaNs at series boundaries), leaving 736,065 clean rows with zero missing values.
+The initial dataset, merged from multiple Alpaca API fetches, contained 10,735 missing hourly timesteps across tokens. Some gaps spanned entire days — the largest being 784 hours (~33 days) for a single token. This rendered the merged dataset unusable for sequential time series modeling, requiring a switch to a bulk historical data source. After processing, 108,270 rows were dropped during feature engineering (log return NaNs at series boundaries), leaving 736,065 clean rows with zero missing values.
 
 #### Training
-The model cannot be trained locally on Apple Silicon hardware within a reasonable timeframe. Even with a reduced architecture (0.1M parameters, hidden size of 32) and aggressive batching (batch size 512, num_workers=0 for stability), training across ~1,000 batches per epoch on 512K samples is impractical without dedicated GPU resources. Migration to Amazon SageMaker for training and hyperparameter optimization is a work in progress.
+Because it is so large, the model cannot be trained locally on Apple Silicon hardware within a reasonable timeframe. Even with a reduced architecture (0.1M parameters, hidden size of 32) and aggressive batching (batch size 512, num_workers=0 for stability), training across ~1,000 batches per epoch on 512K samples is impractical without dedicated GPU resources. Migration to Amazon SageMaker for training and hyperparameter tuning (via bayesian optimization) is a work in progress.
 
 #### Extreme Outliers
-Cryptocurrency data exhibits ~2.5% extreme outliers (flash crashes, pumps) that distort standard normalization. Z-score scaling compresses the usable range when mean and standard deviation are contaminated by these tail events. This required adopting robust quantile-based scaling (10th/90th percentiles) and per-token normalization to prevent high-volatility tokens like MATIC (variance 0.000276) from dominating gradients over lower-volatility tokens like XMR (variance 0.000104).
+Cryptocurrency data exhibits ~2.5% extreme outliers (flash crashes, pumps) that distort standard normalization. Z-score scaling compresses the usable range when mean and standard deviation are contaminated by these tail events. This required adopting robust quantile-based scaling (10th/90th percentiles) and per-token normalization to prevent high-volatility tokens from dominating gradients over lower-volatility tokens.
 
 ## Technical Architecture
 
