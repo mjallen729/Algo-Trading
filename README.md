@@ -8,7 +8,7 @@ This project implements a machine learning pipeline for cryptocurrency price for
 
 ### Key Objectives
 
-- **Prediction Task**: Forecast 1-hour ahead log returns for cryptocurrency closing prices
+- **Prediction Task**: Forecast 12-step ahead log returns for cryptocurrency closing prices
 - **Trading Universe**: 19 altcoins (ADA, ALGO, ATOM, BAL, BCH, BNB, COMP, DENT, DOGE, ETC, HBAR, LINK, LTC, MATIC, MKR, RVN, SOL, TRX, XMR)
 - **Market Context**: BTC and ETH excluded from trading universe but used as features (market too efficient)
 - **Data Frequency**: Hourly OHLCV data
@@ -126,7 +126,7 @@ next_close_log (target)
 
 ### Sequence Parameters
 - **Encoder length**: 168 timesteps (1 week of hourly data)
-- **Prediction horizon**: 1 timestep (next hour)
+- **Prediction horizon**: 12 timesteps (12 hours ahead)
 - **Minimum encoder length**: 168 (fixed-length sequences)
 
 **Rationale**: 1-week lookback captures weekly patterns while maintaining stationarity. Longer sequences risk non-stationarity in volatile crypto markets.
@@ -210,7 +210,7 @@ When implementing trading strategies, account for:
 
 ### Signal Interpretation
 
-The model predicts `next_close_log` (log return for next hour). To convert back to price:
+The model predicts `next_close_log` (log return for the next 12 hours). To convert back to price:
 
 ```python
 predicted_price = current_close * exp(predicted_next_close_log)
